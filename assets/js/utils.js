@@ -118,10 +118,7 @@ const horarioADiario = (dataH) => {
     });
 
     let diaActual = null;
-    let fechaActual = null;
-
-    console.log('contadores :>> ', contadores);
-    console.log('dataH :>> ', dataH);
+    let fechaActual = null;    
 
     // recorremos los datos para ir operando con los datos
     for (let i = 0; i < dataH.length; i++) {
@@ -140,8 +137,6 @@ const horarioADiario = (dataH) => {
         if (diaTemp == diaActual) { // Aquí programamos lo que ocurre cuando seguimos en la misma franja diaria
 
             contadores.forEach((cont, index) => { //mientras estamos en el mismo periodo horario, sumamos los valores y flags
-                console.log('i  index :>> ', `i: ${i} index: ${index}`);
-                
 
                 cont.value.push(stringToNumber(dataH[i][`${cont.titulo} value`])); // guardamos los valores para calcularlos depues
                 cont.flag.push(dataH[i][`${cont.titulo} flag`]);
@@ -594,7 +589,7 @@ const horaAOcto = (dataH) => {
                 }
                 objFin[`${cont.titulo} value`] = valueFinal;
                 objFin[`${cont.titulo} flag`] = flagFinal;
-                /* console.log('datosFin :>> ', datosFin); */
+               
             });
 
             //guardamos la fila en los datos finales

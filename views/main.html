@@ -50,9 +50,8 @@
             </ul>
             <img src="../assets/imgs/example.png" class="border border-primary" alt="ejemplo de nombres">
             <ul>
-                <li>Los datos que hay dentro del archivo deben tener la primera columna que sea la fecha, la 2º columna
-                    que
-                    sea la hora, los datos separados por ";" y los decimales separados por ",". Recordar que para los
+                <li>Los datos que hay dentro del archivo deben tener la primera columna que sea la "fecha hora", los
+                    datos separados por ";" y los decimales separados por ",". Recordar que para los
                     octohorarios necesitamos 1 día extra de datos para realizar los calculos.</li>
             </ul>
             <img src="../assets/imgs/example2.png" class="border border-primary" alt="ejemplo de contenido">
@@ -118,19 +117,17 @@
             let diarios = document.getElementById('diarios').checked;
             let octohorarios = document.getElementById('octohorarios').checked;
 
-            let results = []; //TODO: Seguir desde aquí. Peta y hay que investigar porque
 
-            fileList.forEach(file => {
-                //console.log('file :>> ', file);
-            });
-            fileNames = utils.extractFileName(fileList);
 
-            fileNames.forEach(file => {
+            fileNames = utils.extractFileName(fileList);// array que contiene los nombres de archivos y sus respectivas fileURL
 
+            fileNames.forEach((file,fileNamesIndex) => {
+
+                let results = [];
 
                 fs.createReadStream(file.fileURL)
                     .pipe(csv({ separator: ';' }))
-                    .on('data', (data) => {                        
+                    .on('data', (data) => {
                         // data es el valor de una fila entera. las keys son los titulos de las columnas.
                         //creamos un objeto temporal para trabajar con el
                         let obj = {};
@@ -149,11 +146,6 @@
                                 let a = fila[index][0].split(' ');
                                 a.pop();
                                 let key = a.join(' ');
-                                /* let key = fila[index][0].split(' ')[0]; */
-
-                                /*   if(index> fila.length-1){
-                                      console.log('fila[index] :>> ', fila[index]);
-                                  } */
 
                                 let value = utils.stringToNumber(fila[index][1].split(' ')[0]);
                                 let flag = fila[index][1].split(' ')[1];
@@ -163,8 +155,6 @@
 
 
                             }
-
-
                         }
 
                         //miramos de no añadir objetos vacíos
@@ -196,6 +186,7 @@
                             dataO = utils.horaAOcto(dataH);
 
                         } else if (type == 'horarios') { // si los ficheros son de tipo horario
+
                             dataD = utils.horarioADiario(results);
                             dataO = utils.horaAOcto(results);
                         }
@@ -275,48 +266,14 @@
                                 .then(() => console.log('Quinceminutal a octoHorario grabado'));
 
                         }
+                        results = [];
 
-
-
-
-
-
-
+                        if(fileNamesIndex==fileNames.length-1){
+                            alert("Finalización de creación de archivos")
+                        }
                     });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
             });
-
-
-
-        }
-
-
+        }       
     }
 
 

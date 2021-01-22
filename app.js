@@ -17,7 +17,7 @@ function createWindow() {
     mainWindow.loadFile('./views/main.html')
 
     // Open DevTools - Remove for PRODUCTION!
-    mainWindow.webContents.openDevTools();
+    //mainWindow.webContents.openDevTools();     // SOLO PARA DESARROLLO
     mainWindow.setMenuBarVisibility(false)
     // Listen for window being closed
     mainWindow.on('closed', () => {
