@@ -1,0 +1,34 @@
+{
+  "name": "calculadorhd",
+  "version": "1.0.0",
+  "description": "Programa para realizar cálculos diarios, horarios, octohorarios, etc",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "watch": "nodemon --exec electron .",
+    "start": " electron ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://172.23.255.200/envira-ds/calculadorHD"
+  },
+  "keywords": [
+    "calculadorHD",
+    "octohorario",
+    "diario",
+    "horario"
+  ],
+  "author": "Stephane Margini",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^11.2.0",
+    "electron-rebuild": "^2.3.4",
+    "nodemon": "^2.0.7"
+  },
+  "dependencies": {
+    "bootstrap": "^5.0.0-beta1",
+    "csv-parser": "^3.0.0",
+    "csv-writer": "^1.6.0",
+    "moment": "^2.29.1"
+  }
+}

@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Main window</title>
+    <link rel="stylesheet" href="../node_modules/bootstrap/dist/css/bootstrap.min.css">
+</head>
+
+<body>
+    <div id="maincontainer" class="m-4">
+
+        <div class="mt-3">
+            <label class="mr-1 " for="btnseleccionar"> Seleccionar los archivos a tratar:</label>
+            <button id="btnseleccionar" class="btn btn-primary btn-sm" onclick="fileChooser()">Seleccionar
+                archivos</button>
+        </div>
+        <div class="mt-3">
+            <label class="mr-1 " for="btnsalida"> Seleccionar donde desea guardar los documentos generados:</label>
+            <button id="btnsalida" class="btn btn-primary btn-sm" onclick="folderChooser()">Seleccionar carpeta</button>
+        </div>
+        <form action="" onsubmit="event.preventDefault();">
+
+            <label>Seleccionar los archivos a generar :</label>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="" id="horarios">
+                <label class="form-check-label" for="horarios">horarios</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input " type="checkbox" value="" id="diarios">
+                <label class="form-check-label" for="diarios">diarios</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="" id="octohorarios">
+                <label class="form-check-label" for="octohorarios">octohorarios</label>
+            </div>
+            <button class="btn btn-success btn-sm m-1" id="btnGenerar" onclick="generar()">Generar</button>
+
+        </form>
+        <hr>
+        <div>
+
+            <h2>Importante</h2>
+            <ul>
+                <li>Los archivos deben estar nombrados con las palabras <strong>"quinceminutales"</strong> u
+                    <strong>"horarios"</strong> para que el programa pueda distinguir los datos a tratar"
+                </li>
+                <li>El nombre debe estar separado por guiones bajos o guiones medios</li>
+            </ul>
+            <img src="../assets/imgs/example.png" class="border border-primary" alt="ejemplo de nombres">
+            <ul>
+                <li>Los datos que hay dentro del archivo deben tener la primera columna que sea la fecha, la 2º columna
+                    que
+                    sea la hora, los datos separados por ";" y los decimales separados por ",". Recordar que para los
+                    octohorarios necesitamos 1 día extra de datos para realizar los calculos.</li>
+            </ul>
+            <img src="../assets/imgs/example2.png" class="border border-primary" alt="ejemplo de contenido">
+
+        </div>
+
+    </div>
+</body>
+<script>
+
+    const { dialog } = require('electron').remote
+    const utils = require('../assets/js/utils.js');
+    const csv = require('csv-parser');
+    const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+    const fs = require('fs');
+
+
+
+
+    let fileList = null; // donde vamos a almacenar los archivos seleccionados   
+    let fileNames = null;  // donde guardamos los nombres de los archivos    
+    let outputDir = null; // url de la carpeta de salida
+
+    // selecciona los archivos a tratar
+    function fileChooser() {
+
+        let selected = dialog.showOpenDialogSync({
+            title: 'Seleccionar archivos',
+            properties: ['openFile', 'multiSelections'],
+            filters: [
+                { name: 'texto', extensions: ['txt'] },
+                { name: 'csv', extensions: ['csv'] }
+            ]
+        })
+
+        if (selected != undefined) {
+            fileList = selected;
+        }
+    }
+    // selecciona la carpeta donde guardar el output
+    function folderChooser() {
+
+        let selected2 = dialog.showOpenDialogSync({
+            title: 'Seleccionar carpeta',
+            properties: ["openDirectory"]
+        })
+
+        if (selected2 != undefined) {
+            outputDir = selected2;
+        }
+    }
+
+    // genera los documentos
+    function generar() {
+
+        if (!fileList || !outputDir) {
+
+            dialog.showErrorBox("Error", "Debe haber seleccionado los archivos de entrada y la carpeta de salida")
+
+        } else {
+
+            let horarios = document.getElementById('horarios').checked;
+            let diarios = document.getElementById('diarios').checked;
+            let octohorarios = document.getElementById('octohorarios').checked;
+
+            let results = []; //TODO: Seguir desde aquí. Peta y hay que investigar porque
+
+            fileList.forEach(file => {
+                //console.log('file :>> ', file);
+            });
+            fileNames = utils.extractFileName(fileList);
+
+            fileNames.forEach(file => {
+
+
+                fs.createReadStream(file.fileURL)
+                    .pipe(csv({ separator: ';' }))
+                    .on('data', (data) => {
+                        console.log('data :>> ', data);
+                        // data es el valor de una fila entera. las keys son los titulos de las columnas.
+                        //creamos un objeto temporal para trabajar con el
+                        let obj = {};
+
+                        // cambiamos ligeramente la estructura para poder manipular los datos.
+                        // separamos la fecha de la hora, y los valores de las flags
+                        let fila = Object.entries(data);
+
+                        for (let index = 0; index < fila.length; index++) {
+
+                            if (index == 0) {
+                                obj["FECHA"] = fila[index][1].split(' ')[0];
+                                obj['HORA'] = fila[index][1].split(' ')[1];
+                            } else {
+
+                                let a = fila[index][0].split(' ');
+                                a.pop();
+                                let key = a.join(' ');
+                                /* let key = fila[index][0].split(' ')[0]; */
+
+                                /*   if(index> fila.length-1){
+                                      console.log('fila[index] :>> ', fila[index]);
+                                  } */
+
+                                let value = utils.stringToNumber(fila[index][1].split(' ')[0]);
+                                let flag = fila[index][1].split(' ')[1];
+
+                                obj[`${key} value`] = value;
+                                obj[`${key} flag`] = flag;
+
+
+                            }
+
+
+                        }
+
+                        //miramos de no añadir objetos vacíos
+                        if (Object.keys(obj).length !== 0 && obj.constructor === Object) {
+                            results.push(obj);
+                        }
+
+                    })
+                  /*   .on('end', () => {
+
+
+                        // almacena los datos pasados de quinceminutales a horario
+                        let dataH = null;
+                        // almacena los datos pasados de horario a diario
+                        let dataD = null;
+                        // almacena los datos octohorarios máximos diarios
+                        let dataO = null;
+
+                        // vamos a hacer triaje y separar los archivos por quinceminutales y horarios. 
+                        //Para eso detectamos de que tipo son.
+                        let type = utils.checkFileType(file.name);
+
+
+
+                        if (type == 'quinceminutales') { // si los ficheros son de tipo quinceminutales
+
+                            dataH = utils.quinceMinAHorario(results);
+                            dataD = utils.horarioADiario(dataH);
+                            dataO = utils.horaAOcto(dataH);
+
+                        } else if (type == 'horarios') { // si los ficheros son de tipo horario
+                            dataD = utils.horarioADiario(results);
+                            dataO = utils.horaAOcto(results);
+                        }
+
+
+                        // ------------------------------- ESCRITURA --------------------------------------
+                        // cabeceras generales usadas en la configuración de csv-writer
+                        let header = [];
+                        for (const [key, value] of Object.entries(results[1])) {
+                            header.push({ id: `${key}`, title: `${key}` })
+
+                        }
+                        let csvWriter = null;
+                        //-------------------
+
+                        // cabecera modificada para datos diarios. Se ha quitado la columna de "hora" //TODO: Este código no funciona y hay que arreglarlo
+                        let headerD = [...header];
+                        headerD.splice(1, 1);
+
+
+                        // escribimos el archivo
+                        if (type == 'quinceminutales') { // si los ficheros son de tipo quinceminutales
+
+                            // Quinceminutal a horario
+                            csvWriter = createCsvWriter({
+                                path: `${outputDir}\\${file.name}A_horario.csv`,
+                                header,
+                                fieldDelimiter: ';'
+                            });
+                            csvWriter
+                                .writeRecords(dataH)
+                                .then(() => console.log('Quinceminutal a horario grabado'));
+
+
+                            // horario a diario
+                            csvWriter = createCsvWriter({
+                                path: `${outputDir}\\${file.name}A_Diario.csv`,
+                                header,
+                                fieldDelimiter: ';'
+                            });
+                            csvWriter
+                                .writeRecords(dataD)
+                                .then(() => console.log('Horario a diario grabado'))
+
+                            // Quinceminutal a octoHorario
+                            csvWriter = createCsvWriter({
+                                path: `${outputDir}\\${file.name}A_octoHorario.csv`,
+                                header,
+                                fieldDelimiter: ';'
+                            });
+                            csvWriter
+                                .writeRecords(dataO)
+                                .then(() => console.log('Quinceminutal a octoHorario grabado'));
+
+
+                        } else if (type == 'horarios') { // si los ficheros son de tipo horario
+
+                            // horario a diario
+                            csvWriter = createCsvWriter({
+                                path: `${outputDir}\\${file.name}A_Diario.csv`,
+                                header,// TODO: modificar las columnas para que sean personalizadas. Es decir, en los diarios quitar la columna de horas que no se usa, en la de horas, juntar la hora con la fecha, etc...
+                                fieldDelimiter: ';'
+                            });
+                            csvWriter
+                                .writeRecords(dataD)
+                                .then(() => console.log('Horario a diario grabado'));
+
+
+                            // Quinceminutal a octoHorario
+                            csvWriter = createCsvWriter({
+                                path: `${outputDir}\\${file.name}A_octoHorario.csv`,
+                                header,
+                                fieldDelimiter: ';'
+                            });
+                            csvWriter
+                                .writeRecords(dataO)
+                                .then(() => console.log('Quinceminutal a octoHorario grabado'));
+
+                        }
+
+
+
+
+
+
+
+                    });
+
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            });
+
+
+
+        }
+
+
+    }
+
+
+
+</script>
+
+</html>
