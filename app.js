@@ -6,18 +6,19 @@ let mainWindow
 function createWindow() {
 
     mainWindow = new BrowserWindow({
-        width: 1000, height: 800,
+        width: 1000, height: 800,        
         webPreferences: {
             nodeIntegration: true,
             enableRemoteModule: true
-        }
+        },
+        icon:"assets/imgs/icon.ico"
     })
 
     // Load index.html into the new BrowserWindow
     mainWindow.loadFile('./views/main.html')
 
     // Open DevTools - Remove for PRODUCTION!
-    //mainWindow.webContents.openDevTools();     // SOLO PARA DESARROLLO
+    mainWindow.webContents.openDevTools();     // SOLO PARA DESARROLLO
     mainWindow.setMenuBarVisibility(false)
     // Listen for window being closed
     mainWindow.on('closed', () => {

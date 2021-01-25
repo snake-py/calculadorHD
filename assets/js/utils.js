@@ -1,5 +1,6 @@
 const moment = require('moment');
 const utils = require('./utils');
+const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
 
 const validFlags = ['V', 'O', 'R'];
@@ -17,6 +18,13 @@ const checkFileType = (file) => {
     }
 
 };
+const getCreateCsvWriter = (output, header) => {
+    return createCsvWriter({
+        path: output,
+        header,
+        fieldDelimiter: ';'
+    })
+}
 
 /**
  * Recibe un array de strings que contiene las URL de los archivos y devuelve un array de objetos. Cada objeto tiene 
@@ -118,7 +126,7 @@ const horarioADiario = (dataH) => {
     });
 
     let diaActual = null;
-    let fechaActual = null;    
+    let fechaActual = null;
 
     // recorremos los datos para ir operando con los datos
     for (let i = 0; i < dataH.length; i++) {
@@ -589,7 +597,7 @@ const horaAOcto = (dataH) => {
                 }
                 objFin[`${cont.titulo} value`] = valueFinal;
                 objFin[`${cont.titulo} flag`] = flagFinal;
-               
+
             });
 
             //guardamos la fila en los datos finales
@@ -628,6 +636,7 @@ const horaAOcto = (dataH) => {
 
 
 module.exports = {
+    getCreateCsvWriter,
     stringToNumber,
     extractFileName,
     quinceMinAHorario,

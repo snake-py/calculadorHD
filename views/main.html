@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Main window</title>
+    <title>Calculador HD</title>
     <link rel="stylesheet" href="../node_modules/bootstrap/dist/css/bootstrap.min.css">
 </head>
 
@@ -65,7 +65,7 @@
     const { dialog } = require('electron').remote
     const utils = require('../assets/js/utils.js');
     const csv = require('csv-parser');
-    const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+    //const createCsvWriter = require('csv-writer').createObjectCsvWriter; // movido a utils
     const fs = require('fs');
 
 
@@ -121,7 +121,7 @@
 
             fileNames = utils.extractFileName(fileList);// array que contiene los nombres de archivos y sus respectivas fileURL
 
-            fileNames.forEach((file,fileNamesIndex) => {
+            fileNames.forEach((file, fileNamesIndex) => {
 
                 let results = [];
 
@@ -210,70 +210,49 @@
                         // escribimos el archivo
                         if (type == 'quinceminutales') { // si los ficheros son de tipo quinceminutales
 
-                            // Quinceminutal a horario
-                            csvWriter = createCsvWriter({
-                                path: `${outputDir}\\${file.name}A_horario.csv`,
-                                header,
-                                fieldDelimiter: ';'
-                            });
-                            csvWriter
-                                .writeRecords(dataH)
-                                .then(() => console.log('Quinceminutal a horario grabado'));
+                            //miramos que opciones a seleccionado el usuario para imprimir
+                            if (horarios == true) {
+                                // Quinceminutal a horario
+                                csvWriter = utils.getCreateCsvWriter(`${outputDir}\\${file.name}A_horario.csv`, header);
+                                csvWriter.writeRecords(dataH).then(() => console.log(`${file.name}A_horario.csv grabado`));
+                            }
 
+                            if (diarios == true) {
+                                // horario a diario
+                                csvWriter = utils.getCreateCsvWriter(`${outputDir}\\${file.name}A_Diario.csv`, header);
+                                csvWriter.writeRecords(dataD).then(() => console.log(`${file.name}A_Diario.csv grabado`))
+                            }
 
-                            // horario a diario
-                            csvWriter = createCsvWriter({
-                                path: `${outputDir}\\${file.name}A_Diario.csv`,
-                                header,
-                                fieldDelimiter: ';'
-                            });
-                            csvWriter
-                                .writeRecords(dataD)
-                                .then(() => console.log('Horario a diario grabado'))
-
-                            // Quinceminutal a octoHorario
-                            csvWriter = createCsvWriter({
-                                path: `${outputDir}\\${file.name}A_octoHorario.csv`,
-                                header,
-                                fieldDelimiter: ';'
-                            });
-                            csvWriter
-                                .writeRecords(dataO)
-                                .then(() => console.log('Quinceminutal a octoHorario grabado'));
-
+                            if (octohorarios == true) {
+                                // Quinceminutal a octoHorario
+                                csvWriter = utils.getCreateCsvWriter(`${outputDir}\\${file.name}A_octoHorario.csv`, header);
+                                csvWriter.writeRecords(dataO).then(() => console.log(`${file.name}A_octoHorario.csv grabado`));
+                            }
 
                         } else if (type == 'horarios') { // si los ficheros son de tipo horario
 
-                            // horario a diario
-                            csvWriter = createCsvWriter({
-                                path: `${outputDir}\\${file.name}A_Diario.csv`,
-                                header,// TODO: modificar las columnas para que sean personalizadas. Es decir, en los diarios quitar la columna de horas que no se usa, en la de horas, juntar la hora con la fecha, etc...
-                                fieldDelimiter: ';'
-                            });
-                            csvWriter
-                                .writeRecords(dataD)
-                                .then(() => console.log('Horario a diario grabado'));
+                            if (diarios == true) {
+                                // horario a diario
+                                csvWriter = utils.getCreateCsvWriter(`${outputDir}\\${file.name}A_Diario.csv`, header);
+                                csvWriter.writeRecords(dataD).then(() => console.log(`${file.name}A_Diario.csv grabado`));
+                            }
 
-
-                            // Quinceminutal a octoHorario
-                            csvWriter = createCsvWriter({
-                                path: `${outputDir}\\${file.name}A_octoHorario.csv`,
-                                header,
-                                fieldDelimiter: ';'
-                            });
-                            csvWriter
-                                .writeRecords(dataO)
-                                .then(() => console.log('Quinceminutal a octoHorario grabado'));
+                            if (octohorarios == true) {
+                                // horarios a octoHorario
+                                csvWriter = utils.getCreateCsvWriter(`${outputDir}\\${file.name}A_octoHorario.csv`, header);
+                                csvWriter.writeRecords(dataO).then(() => console.log(`${file.name}A_octoHorario.csv grabado`));
+                            }
 
                         }
+                        //limpiamos el array
                         results = [];
 
-                        if(fileNamesIndex==fileNames.length-1){
+                        if (fileNamesIndex == fileNames.length - 1) {
                             alert("Finalización de creación de archivos")
                         }
                     });
             });
-        }       
+        }
     }
 
 
