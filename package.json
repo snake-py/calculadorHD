@@ -1,5 +1,5 @@
 {
-  "name": "calculadorhd",  
+  "name": "calculadorhd",
   "version": "1.0.0",
   "description": "Programa para realizar cálculos diarios, horarios, octohorarios, etc",
   "main": "app.js",
@@ -20,8 +20,10 @@
     "productName": "Calculador HD",
     "copyright": "Copyright © 2021 Envira SL",
     "win": {
-      "target": ["portable"],
-      "icon":"assets/imgs/icon.ico"      
+      "target": [
+        "portable"
+      ],
+      "icon": "assets/imgs/icon.ico"
     }
   },
   "keywords": [
@@ -30,10 +32,11 @@
     "diario",
     "horario"
   ],
-  "author": "Stephane Margini",
+  "author": "Envira SL",
   "license": "ISC",
   "devDependencies": {
     "electron": "^11.2.0",
+    "electron-builder": "^22.9.1",
     "electron-rebuild": "^2.3.4",
     "nodemon": "^2.0.7"
   },
