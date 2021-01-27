@@ -1,5 +1,6 @@
 const { app, BrowserWindow } = require('electron');
 
+
 let mainWindow
 
 // Create a new BrowserWindow when `app` is ready
