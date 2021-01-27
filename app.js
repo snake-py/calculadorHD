@@ -1,5 +1,5 @@
 const { app, BrowserWindow } = require('electron');
-
+const path = require('path');
 
 let mainWindow
 
@@ -12,11 +12,13 @@ function createWindow() {
             nodeIntegration: true,
             enableRemoteModule: true
         },
-        icon:"assets/imgs/icon.ico"
+        //icon:"assets/imgs/icon.ico"
+        icon:path.join(__dirname,"assets/imgs/icon.ico")
     })
 
     // Load index.html into the new BrowserWindow
-    mainWindow.loadFile('./views/main.html')
+    //mainWindow.loadFile('./views/main.html')
+    mainWindow.loadFile(path.join(__dirname,'views/main.html'));
 
     // Open DevTools - Remove for PRODUCTION!
     mainWindow.webContents.openDevTools();     // SOLO PARA DESARROLLO
