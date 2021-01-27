@@ -12,30 +12,36 @@
     <div id="maincontainer" class="m-4">
 
         <div class="mt-3">
+            
+            <div class="numeracion">1</div>
             <label class="mr-1 " for="btnseleccionar"> Seleccionar los archivos a tratar:</label>
             <button id="btnseleccionar" class="btn btn-primary btn-sm" onclick="fileChooser()">Seleccionar
                 archivos</button>
         </div>
         <div class="mt-3">
+            <div class="numeracion">2</div>
             <label class="mr-1 " for="btnsalida"> Seleccionar donde desea guardar los documentos generados:</label>
             <button id="btnsalida" class="btn btn-primary btn-sm" onclick="folderChooser()">Seleccionar carpeta</button>
         </div>
-        <form action="" onsubmit="event.preventDefault();">
+        <form class="mt-3" action="" onsubmit="event.preventDefault();">
 
+            <div class="numeracion">3</div>
             <label>Seleccionar los archivos a generar :</label>
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" value="" id="horarios">
-                <label class="form-check-label" for="horarios">horarios</label>
+            <div class="mt-2 ps-5">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="" id="horarios">
+                    <label class="form-check-label" for="horarios">horarios</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input " type="checkbox" value="" id="diarios">
+                    <label class="form-check-label" for="diarios">diarios</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="" id="octohorarios">
+                    <label class="form-check-label" for="octohorarios">octohorarios</label>
+                </div>
             </div>
-            <div class="form-check">
-                <input class="form-check-input " type="checkbox" value="" id="diarios">
-                <label class="form-check-label" for="diarios">diarios</label>
-            </div>
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" value="" id="octohorarios">
-                <label class="form-check-label" for="octohorarios">octohorarios</label>
-            </div>
-            <button class="btn btn-success btn-sm m-1" id="btnGenerar" onclick="generar()">Generar</button>
+            <button class="btn btn-success btn-sm m-1 mt-3" id="btnGenerar" onclick="generar()">Generar</button>
 
         </form>
         <hr>
@@ -258,5 +264,19 @@
 
 
 </script>
+<style>
+    .numeracion {
+        background-color: #f4ff9d;
+        border-radius: 42px;
+        border: 2px solid #868686;
+        display: inline-block;
+        padding: 3px 9px;
+        color: #535353;
+        font-family: Arial;
+        font-size: 14px;
+        font-weight: bold;
+        text-decoration: none;
+    }
+</style>
 
 </html>
