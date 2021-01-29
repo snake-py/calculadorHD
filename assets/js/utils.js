@@ -1,13 +1,15 @@
 const moment = require('moment');
 const utils = require('./utils');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+const csv = require('csv-parser');
+const fs = require('fs');
 
 
 const validFlags = ['V', 'O', 'R'];
 
 const checkFileType = (file) => {
 
-    let a = file.replace('_', '-');
+    let a = file.replaceAll('_', '-');
     let b = a.split('-');
     if (b.includes('quinceminutales')) {
         return 'quinceminutales';
@@ -16,8 +18,49 @@ const checkFileType = (file) => {
     } else {
         return null;
     }
+};
+/**
+ * Este método coge la lista de ficheros de entrada y prepara la estructura que se va a usar mas adelante
+ * para fusionar los datos de los archivos que tengan en común el mismo contaminante.
+ * @param {Array} files 
+ */
+const mergeFilesByKeys = files => { // TODO: hacer o borrar
+
+    console.log('files :>> ', files);
+    let array = []; // este es el array que se va a devolver. Contiene el la lista de contaminantes y todas sus propiedades.
+
+    files.forEach((file, index, arr) => {
+
+        // buscamos si el contaminante ya está registrado en nuestra lista de contaminantes
+        let con = array.find(el => el.key == file.key)
+
+        if (con) { // si existe el contamiante en la lista, añadimos los datos
+
+            con.files.push({ name: file.name, fileURL: file.fileURL });
+
+        } else { // si no existe el contaminante, lo registramos
+
+            array.push(
+                {
+                    key: file.key,
+                    files: [{ name: file.name, fileURL: file.fileURL }],
+                    data: []
+                }
+            )
+
+        }
+
+    });
+    console.log('array :>> ', array);
+
+
 
 };
+/**
+ * Este método genera configuraciónes personalizadas para la escritura de los archivos csv.
+ * @param {String} output 
+ * @param {Array} header 
+ */
 const getCreateCsvWriter = (output, header) => {
     return createCsvWriter({
         path: output,
@@ -27,27 +70,49 @@ const getCreateCsvWriter = (output, header) => {
 }
 
 /**
- * Recibe un array de strings que contiene las URL de los archivos y devuelve un array de objetos. Cada objeto tiene 
- * el nombre del archivo y su correspondiente URL.
+ * Este método coge una lista de URLs de archivos, los lee y devuelve un array con todos sus datos, nombres, etc.
  * @param {*} arrayURLs 
  */
-const extractFileName = (arrayURLs) => {
+const extractFiles = (arrayURLs) => {
 
-    let filenames = [];
+    let files = [];
+    
+
+    // recorremos cada una de las url
     arrayURLs.forEach(url => {
+
 
         let ar1 = url.split("\\"); // dividimos la url
         let s1 = ar1[ar1.length - 1]; // nos quedamos con el último trozo que es el que contiene el nombre
-        let ar2 = s1.split("."); // separamos el nombre por puntos.
+        let ar2 = s1.split("."); // separamos el nombre por puntos para quitar la extensión ".txt"o".csv" en el siguiente paso
         ar2.pop(); // quitamos la extensión
-        let s2 = ar2.join(); // volvemos a juntarlo todo y ya tenemos el nombre.
+        let s2 = ar2.join(); // aquí se almacena el nombre completo
+        let ar3 = s2.split('-');
+        let ar4 = ar3[1].replaceAll("_", "-").split("-"); // extraemos un array que contenga el tipo.
+        let s3 = ar4[0]; // tipo. es decir, "quinceminutal" "horario"
 
-        filenames.push({
-            name: s2,
-            fileURL: url
+        //leemos el archivo y guardamos los datos
+        let data = [];
+        fs.createReadStream(url)
+        .pipe(csv({ separator: ';' }))
+        .on('data', (chunk) => {
+            data.push(chunk);
         })
-    });
-    return filenames
+        .on('end', () => { 
+
+            files.push({
+                name: s2,
+                key: ar3[0],
+                type: s3,
+                fileURL: url,
+                data
+            })
+        })
+
+    });    
+    console.log('files :>> ', files.length);
+    return files
+
 
 };
 
@@ -636,9 +701,10 @@ const horaAOcto = (dataH) => {
 
 
 module.exports = {
+    mergeFilesByKeys,
     getCreateCsvWriter,
     stringToNumber,
-    extractFileName,
+    extractFiles,
     quinceMinAHorario,
     horarioADiario,
     getColumTitles,

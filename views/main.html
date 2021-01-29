@@ -78,7 +78,8 @@
 
 
     let fileList = null; // donde vamos a almacenar los archivos seleccionados   
-    let fileNames = null;  // donde guardamos los nombres de los archivos    
+    let filesData = null;  // donde guardamos los nombres de los archivos, ruta y contaminante
+    let contaminantes=null; // aquí es donde guardamos todos los datos fusionados por contaminantes.   
     let outputDir = null; // url de la carpeta de salida
 
     // selecciona los archivos a tratar
@@ -124,10 +125,16 @@
             let octohorarios = document.getElementById('octohorarios').checked;
 
 
-
-            fileNames = utils.extractFileName(fileList);// array que contiene los nombres de archivos y sus respectivas fileURL
-
-            fileNames.forEach((file, fileNamesIndex) => {
+            
+            
+            filesData = utils.extractFiles(fileList);// array que contiene los nombres de archivos y sus respectivas fileURL
+           console.log('filesData :>> ', filesData.length);
+            
+            // utils.mergeFilesByKeys(filesData); // TODO: revisar esto si lo necesitamos o lo modificamos
+                        
+            // TODO: REDISEÑAR A PARTIR DE AQUI . No mirar el código que hay a parti de aquí porque se va a rehacer.================================================
+            filesData.forEach((file, filesDataIndex) => {
+               
 
                 let results = [];
 
@@ -252,14 +259,12 @@
                         }
                         //limpiamos el array
                         results = [];
-
-                        if (fileNamesIndex == fileNames.length - 1) {
-                            alert("Finalización de creación de archivos")
-                        }
+                        
                     });
             });
         }
-    }
+        alert("Finalización de creación de archivos")
+    } // fin función "generar".
 
 
 
