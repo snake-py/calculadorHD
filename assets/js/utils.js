@@ -1,7 +1,8 @@
 const moment = require('moment');
 const utils = require('./utils');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
-const csv = require('csv-parser');
+//const csv = require('csv-parser');
+const parse = require('csv-parse/lib/sync');
 const fs = require('fs');
 
 
@@ -76,7 +77,6 @@ const getCreateCsvWriter = (output, header) => {
 const extractFiles = (arrayURLs) => {
 
     let files = [];
-    
 
     // recorremos cada una de las url
     arrayURLs.forEach(url => {
@@ -93,23 +93,35 @@ const extractFiles = (arrayURLs) => {
 
         //leemos el archivo y guardamos los datos
         let data = [];
-        fs.createReadStream(url)
-        .pipe(csv({ separator: ';' }))
-        .on('data', (chunk) => {
-            data.push(chunk);
-        })
-        .on('end', () => { 
 
-            files.push({
-                name: s2,
-                key: ar3[0],
-                type: s3,
-                fileURL: url,
-                data
+        let fileData = fs.readFileSync(url, 'utf8');
+        const records = parse(fileData, {
+            columns: headers => {
+                return headers.filter(header => header.length > 0);
+              },
+            delimiter: ";",
+            skip_empty_lines: true,
+            relaxColumnCount: true // >=== i added this option to bypass the error and check what is happening
+        })
+        console.log('records :>> ', records);
+
+        /* fs.createReadStream(url)
+            .pipe(csv({ separator: ';' }))
+            .on('data', (chunk) => {
+                data.push(chunk);
             })
-        })
+            .on('end', () => {
 
-    });    
+                files.push({
+                    name: s2,
+                    key: ar3[0],
+                    type: s3,
+                    fileURL: url,
+                    data
+                });
+            }) */
+
+    });
     console.log('files :>> ', files.length);
     return files
 
