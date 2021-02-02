@@ -1,5 +1,4 @@
 const moment = require('moment');
-const utils = require('./utils');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 //const csv = require('csv-parser');
 const parse = require('csv-parse/lib/sync');
@@ -20,6 +19,30 @@ const checkFileType = (file) => {
         return null;
     }
 };
+
+/**
+ * Este método recibe la lista de ficheros quinceminutales y devuelve esa misma lista
+ * pero transformados a horarios. Para eso utiliza el método "quinceMinAHorario" situado en
+ * este mismo archivo.
+ * @param {Object Array} files15m 
+ */
+const transform15mTo60m = files15m => {
+
+    if (!files15m) { return null }
+
+    console.log('files15m :>> ', files15m);
+    // este es el objeto que devuelve este método y contiene los datos modificados a horarios.
+    let arr = []
+    files15m.forEach(file => {
+
+        let dataH = quinceMinAHorario(file.data);
+        console.log('dataH :>> ', dataH);
+
+    });
+
+
+}
+
 /**
  * Este método coge la lista de ficheros de entrada y prepara la estructura que se va a usar mas adelante
  * para fusionar los datos de los archivos que tengan en común el mismo contaminante.
@@ -71,12 +94,15 @@ const getCreateCsvWriter = (output, header) => {
 }
 
 /**
- * Este método coge una lista de URLs de archivos, los lee y devuelve un array con todos sus datos, nombres, etc.
+ * Este método coge una lista de URLs de archivos, los lee y devuelve un array con todos sus datos separados, nombres, datos, etc.
  * @param {*} arrayURLs 
  */
 const extractFiles = (arrayURLs) => {
 
     let files = [];
+
+    // esto va a servir para darles un id único a cada archivo
+    let idCounter = 0;
 
     // recorremos cada una de las url
     arrayURLs.forEach(url => {
@@ -91,38 +117,41 @@ const extractFiles = (arrayURLs) => {
         let ar4 = ar3[1].replaceAll("_", "-").split("-"); // extraemos un array que contenga el tipo.
         let s3 = ar4[0]; // tipo. es decir, "quinceminutal" "horario"
 
-        //leemos el archivo y guardamos los datos
-        let data = [];
-
+        //leemos el archivo y guardamos los datos en una variable llamada "records"
         let fileData = fs.readFileSync(url, 'utf8');
+
+        /* // TODO: Borrar si no lo hemos usado. Esto es para que lo devuelva en forma de lista de objetos
+                 const records = parse(fileData, {
+                    columns: headers => {
+                        return headers.filter(header => header.length > 0);
+                    },
+                    delimiter: ";",
+                    skip_empty_lines: true,
+                    relaxColumnCount: true
+                })
+                console.log('records :>> ', records); */
+
         const records = parse(fileData, {
-            columns: headers => {
-                return headers.filter(header => header.length > 0);
-              },
             delimiter: ";",
             skip_empty_lines: true,
-            relaxColumnCount: true // >=== i added this option to bypass the error and check what is happening
+            relaxColumnCount: true
         })
-        console.log('records :>> ', records);
+        // como los archivos generados por envira tienen las cabeceras mal (hay una de más y vacía).
+        // vamos a eliminar la que está mal.
+        let cabecera = records[0].filter(heads => heads.length > 0);
+        records[0] = cabecera;
 
-        /* fs.createReadStream(url)
-            .pipe(csv({ separator: ';' }))
-            .on('data', (chunk) => {
-                data.push(chunk);
-            })
-            .on('end', () => {
+        files.push({
+            id: idCounter,
+            name: s2,
+            key: ar3[0],
+            type: s3,
+            fileURL: url,
+            data: records
+        })
 
-                files.push({
-                    name: s2,
-                    key: ar3[0],
-                    type: s3,
-                    fileURL: url,
-                    data
-                });
-            }) */
-
+        idCounter++;
     });
-    console.log('files :>> ', files.length);
     return files
 
 
@@ -713,6 +742,7 @@ const horaAOcto = (dataH) => {
 
 
 module.exports = {
+    transform15mTo60m,
     mergeFilesByKeys,
     getCreateCsvWriter,
     stringToNumber,

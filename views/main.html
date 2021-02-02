@@ -12,7 +12,7 @@
     <div id="maincontainer" class="m-4">
 
         <div class="mt-3">
-            
+
             <div class="numeracion">1</div>
             <label class="mr-1 " for="btnseleccionar"> Seleccionar los archivos a tratar:</label>
             <button id="btnseleccionar" class="btn btn-primary btn-sm" onclick="fileChooser()">Seleccionar
@@ -79,7 +79,7 @@
 
     let fileList = null; // donde vamos a almacenar los archivos seleccionados   
     let filesData = null;  // donde guardamos los nombres de los archivos, ruta y contaminante
-    let contaminantes=null; // aquí es donde guardamos todos los datos fusionados por contaminantes.   
+    let contaminantes = null; // aquí es donde guardamos todos los datos fusionados por contaminantes.   
     let outputDir = null; // url de la carpeta de salida
 
     // selecciona los archivos a tratar
@@ -111,7 +111,7 @@
         }
     }
 
-    // genera los documentos
+    // genera los documentos 
     function generar() {
 
         if (!fileList || !outputDir) {
@@ -124,17 +124,21 @@
             let diarios = document.getElementById('diarios').checked;
             let octohorarios = document.getElementById('octohorarios').checked;
 
+            /* Aquí cogemos la lista de archivos y creamos una lista de objetos donde hemos extraido
+            el nombre, el tipo, los datos, etc.. */
+            filesData = utils.extractFiles(fileList);
+            console.log('filesData :>> ', filesData);
+            // Ahora vamos a extraer los quinceminutales y transformarlos a horarios
+            let files15m = filesData.filter(file=>file.type=="quinceminutales");
+            filesTransformados = utils.transform15mTo60m(files15m)
+            
+            
 
-            
-            
-             filesData = utils.extractFiles(fileList);// array que contiene los nombres de archivos y sus respectivas fileURL
-           console.log('filesData :>> ', filesData.length);
-            
             // utils.mergeFilesByKeys(filesData); // TODO: revisar esto si lo necesitamos o lo modificamos
-                        
+
             // TODO: REDISEÑAR A PARTIR DE AQUI . No mirar el código que hay a parti de aquí porque se va a rehacer.================================================
             filesData.forEach((file, filesDataIndex) => {
-               
+
 
                 let results = [];
 
@@ -259,7 +263,7 @@
                         }
                         //limpiamos el array
                         results = [];
-                        
+
                     });
             });
         }
