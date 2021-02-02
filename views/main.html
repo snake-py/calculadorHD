@@ -127,14 +127,27 @@
             /* Aquí cogemos la lista de archivos y creamos una lista de objetos donde hemos extraido
             el nombre, el tipo, los datos, etc.. */
             filesData = utils.extractFiles(fileList);
-            console.log('filesData :>> ', filesData);
-            // Ahora vamos a extraer los quinceminutales y transformarlos a horarios
-            let files15m = filesData.filter(file=>file.type=="quinceminutales");
-            filesTransformados = utils.transform15mTo60m(files15m)
-            
-            
 
-            // utils.mergeFilesByKeys(filesData); // TODO: revisar esto si lo necesitamos o lo modificamos
+            // Ahora vamos a extraer los quinceminutales y transformarlos a horarios
+            // Aqui extraemos los archivos 15minutales
+            let files15m = filesData.filter(file => file.type == "quinceminutales");
+            if (files15m.length > 0) { // si tenemos archivos 15 minutales
+
+                // Aqui pasamos los 15minutales a horarios.
+                utils.transform15mTo60m(files15m) // No necesitamos guardar los datos retornados porque los cambios ya han sido aplicados a los datos originales
+            }
+            // Ahora debemos fusionar todos los datos horarios para tener todos los horarios en un mismo fichero.
+                        
+            let mergedData= utils.mergeFilesByKeys(filesData); 
+
+
+
+
+
+
+
+
+
 
             // TODO: REDISEÑAR A PARTIR DE AQUI . No mirar el código que hay a parti de aquí porque se va a rehacer.================================================
             filesData.forEach((file, filesDataIndex) => {

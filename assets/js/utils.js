@@ -30,17 +30,69 @@ const transform15mTo60m = files15m => {
 
     if (!files15m) { return null }
 
-    console.log('files15m :>> ', files15m);
     // este es el objeto que devuelve este método y contiene los datos modificados a horarios.
     let arr = []
     files15m.forEach(file => {
 
-        let dataH = quinceMinAHorario(file.data);
-        console.log('dataH :>> ', dataH);
+        // aquí guardamos el mismo "file" pero con las columnas separadas
+        let splitedFile = splitColumns(file);
 
+        // pasamos sus datos a Horarios
+        let dataH = quinceMinAHorario(splitedFile.data); //TODO: seguir desde aquí cuando se termine de dividir las columnas
+
+        file.data = dataH;
+        file.type = "horarios";
+
+        arr.push(file);
     });
 
+    return arr;
 
+}
+/**
+ * Cuando leemos los archivos csv, tenemos datos que están fusionados en la misma columna
+ * como la "FECHA HORA", o "DATOS FLAG". Este método los separa para poder, mas adelante,
+ * trabajar con cada valor.
+ * @param {Object array} files 
+ */
+const splitColumns = file => {
+
+    if (!file) { return null }
+
+
+    // aquí almacenaremos los datos ya divididos
+    let newData = [];
+    //recorremos los datos fila por fila y los vamos dividiendo
+    file.data.forEach((row, index1) => {
+
+        // fragmentamos la fila para trabajar columna a columna
+        let arrEntries = Object.entries(row);
+
+        // creamos una variable donde almacenar la nueva fila dividida
+        let splitedRow = {};
+        arrEntries.forEach((arrColumn, index2) => {
+
+            if (arrColumn[0] == "FECHA HORA") {
+
+                let splitedVal = arrColumn[1].split(" ");
+
+                splitedRow.FECHA = splitedVal[0];
+                splitedRow.HORA = splitedVal[1];
+
+            } else {
+
+                let splitedTitle = arrColumn[0].split(" ");
+                let splitedValue = arrColumn[1].split(" ");
+
+                splitedRow[`${splitedTitle[0]} value`] = stringToNumber(splitedValue[0]);
+                splitedRow[`${splitedTitle[0]} flag`] = splitedValue[1];
+            }
+        });
+        newData.push(splitedRow);
+    });
+    // a partir de aquí, ya tenemos los datos reconstruidos. Ya podemos volver a montar el archivo entero añadiendole los datos nuevos
+    file.data = newData;
+    return file;
 }
 
 /**
@@ -48,34 +100,78 @@ const transform15mTo60m = files15m => {
  * para fusionar los datos de los archivos que tengan en común el mismo contaminante.
  * @param {Array} files 
  */
-const mergeFilesByKeys = files => { // TODO: hacer o borrar
+const mergeFilesByKeys = files => {
 
-    console.log('files :>> ', files);
-    let array = []; // este es el array que se va a devolver. Contiene el la lista de contaminantes y todas sus propiedades.
+    let array = []; // Contiene el la lista de contaminantes y sus datos agrupados pero no fusionados.
 
-    files.forEach((file, index, arr) => {
+    files.forEach((file, indexFile, arrFiles) => {
 
-        // buscamos si el contaminante ya está registrado en nuestra lista de contaminantes
+        // buscamos si el contaminante ya está registrado en nuestra lista de contaminantes (array)
         let con = array.find(el => el.key == file.key)
 
         if (con) { // si existe el contamiante en la lista, añadimos los datos
 
-            con.files.push({ name: file.name, fileURL: file.fileURL });
+            con.files.push({ name: file.name, fileURL: file.fileURL, id: file.id, data: file.data });
 
         } else { // si no existe el contaminante, lo registramos
 
             array.push(
                 {
                     key: file.key,
-                    files: [{ name: file.name, fileURL: file.fileURL }],
-                    data: []
+                    files: [{ name: file.name, fileURL: file.fileURL, id: file.id, data: file.data }],
+
                 }
             )
+        }
+    });
+
+    console.log('array :>> ', array);
+    // ahora que hemos agrupado los datos por contaminantes ( keys) debemos fusionarlos.
+    let fusion = [] // aquí guardaremos la lista de contaminantes con sus respeticos datos fusionados.
+    // recorremos cada contaminante
+    array.forEach(contam => {
+
+        if (contam.files.length > 1) { // si hay varios grupos de datos, debemos fusionarlos
+
+            let dataFusion = []; // aquí vamos a guardar los datos fusionados
+
+            contam.files.forEach((file, index2, arr) => {
+
+                if (index2 == 0) { // cuando es el primer grupo de datos, lo guardamos entero incluido fecha y hora
+                    dataFusion = file.data;
+                }
+                // ahora añadiremos los datos de los siguientes grupos de datos pero sin repetir la columna de fecha y hora.
+                //1º quitamos la fecha y hora de las filas
+                file.data.forEach((row, index3) => {
+
+                    delete row.FECHA;
+                    delete row.HORA;
+
+                    Object.assign(dataFusion[index3], row)
+
+                })
+
+            });
+
+            console.log('dataFusion :>> ', dataFusion);
+
+            fusion.push({
+                key: contam.key,
+                data: dataFusion
+            })
+
+
+        } else { // si solo hay 1 grupo de dato, no hay nada que fusionar y podemos guardarlo talcual.
+
+            fusion.push({
+                key: contam.key,
+                data: contam.files[0].data
+            })
 
         }
 
     });
-    console.log('array :>> ', array);
+    console.log('fusion :>> ', fusion); //TODO: Seguir desde aquí. Hacer una prueba a ver si se han fusionado bien los datos.
 
 
 
@@ -120,18 +216,17 @@ const extractFiles = (arrayURLs) => {
         //leemos el archivo y guardamos los datos en una variable llamada "records"
         let fileData = fs.readFileSync(url, 'utf8');
 
-        /* // TODO: Borrar si no lo hemos usado. Esto es para que lo devuelva en forma de lista de objetos
-                 const records = parse(fileData, {
-                    columns: headers => {
-                        return headers.filter(header => header.length > 0);
-                    },
-                    delimiter: ";",
-                    skip_empty_lines: true,
-                    relaxColumnCount: true
-                })
-                console.log('records :>> ', records); */
 
         const records = parse(fileData, {
+            columns: headers => { // como los archivos generados por envira tienen las cabeceras mal (hay una de más y vacía). vamos a eliminar la que está mal.
+                return headers.filter(header => header.length > 0);
+            },
+            delimiter: ";",
+            skip_empty_lines: true,
+            relaxColumnCount: true
+        })
+
+        /* const records = parse(fileData, {
             delimiter: ";",
             skip_empty_lines: true,
             relaxColumnCount: true
@@ -139,7 +234,7 @@ const extractFiles = (arrayURLs) => {
         // como los archivos generados por envira tienen las cabeceras mal (hay una de más y vacía).
         // vamos a eliminar la que está mal.
         let cabecera = records[0].filter(heads => heads.length > 0);
-        records[0] = cabecera;
+        records[0] = cabecera; */
 
         files.push({
             id: idCounter,
@@ -739,10 +834,9 @@ const horaAOcto = (dataH) => {
 
 
 
-
-
 module.exports = {
     transform15mTo60m,
+    splitColumns,
     mergeFilesByKeys,
     getCreateCsvWriter,
     stringToNumber,
