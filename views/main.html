@@ -69,9 +69,8 @@
 <script>
 
     const { dialog } = require('electron').remote
-    const utils = require('../assets/js/utils.js');
-    const csv = require('csv-parser');
-    //const createCsvWriter = require('csv-writer').createObjectCsvWriter; // movido a utils
+    const utils = require('../assets/js/utils.js');    
+    const createCsvWriter = require('csv-writer').createObjectCsvWriter; // movido a utils //TODO: ver si hace falta y si lo tenemos que borrar de utils
     const fs = require('fs');
 
 
@@ -124,9 +123,18 @@
             let diarios = document.getElementById('diarios').checked;
             let octohorarios = document.getElementById('octohorarios').checked;
 
+            // ======================================= LECTURA Y CALCULOS DE DATOS =====================================================
+
             /* Aquí cogemos la lista de archivos y creamos una lista de objetos donde hemos extraido
             el nombre, el tipo, los datos, etc.. */
             filesData = utils.extractFiles(fileList);
+
+            //Ahora vamos a dividir las columnas porque en los archivos vienen junto los valores y las flags.
+            filesData.forEach(file => {
+                utils.splitColumns(file);
+            });
+
+
 
             // Ahora vamos a extraer los quinceminutales y transformarlos a horarios
             // Aqui extraemos los archivos 15minutales
@@ -136,91 +144,54 @@
                 // Aqui pasamos los 15minutales a horarios.
                 utils.transform15mTo60m(files15m) // No necesitamos guardar los datos retornados porque los cambios ya han sido aplicados a los datos originales
             }
-            // Ahora debemos fusionar todos los datos horarios para tener todos los horarios en un mismo fichero.
-                        
-            let mergedData= utils.mergeFilesByKeys(filesData); 
+
+
+            /* Ahora debemos fusionar todos los datos horarios para tener todos los horarios 
+            en un mismo fichero pero clasificados por contaminantes..*/
+            let datosHorarios = utils.mergeFilesByKeys(filesData);
+            console.log('datosHorarios :>> ', datosHorarios);
+
+            let datosDiarios = utils.horarioADiario(datosHorarios);
+            console.log('datosDiarios :>> ', datosDiarios);
+
+            let datosOctohorarios = utils.horaAOcto(datosHorarios);
+            console.log('datosOctohorarios :>> ', datosOctohorarios);
 
 
 
+            // ======================================ESCRITURA DE DATOS A FICHEROS ====================================================
 
+            // grabación de datos horarios
+            datosHorarios.forEach(contaminante => { //TODO: agregar este ejemplo a los apuntes
+                let header=[]
 
+                for (const [key, value] of Object.entries(contaminante.data[0])) {
+                            header.push({ id: `${key}`, title: `${key}` })
 
-
-
-
-
-            // TODO: REDISEÑAR A PARTIR DE AQUI . No mirar el código que hay a parti de aquí porque se va a rehacer.================================================
-            filesData.forEach((file, filesDataIndex) => {
-
-
-                let results = [];
-
-                fs.createReadStream(file.fileURL)
-                    .pipe(csv({ separator: ';' }))
-                    .on('data', (data) => {
-                        // data es el valor de una fila entera. las keys son los titulos de las columnas.
-                        //creamos un objeto temporal para trabajar con el
-                        let obj = {};
-
-                        // cambiamos ligeramente la estructura para poder manipular los datos.
-                        // separamos la fecha de la hora, y los valores de las flags
-                        let fila = Object.entries(data);
-
-                        for (let index = 0; index < fila.length; index++) {
-
-                            if (index == 0) {
-                                obj["FECHA"] = fila[index][1].split(' ')[0];
-                                obj['HORA'] = fila[index][1].split(' ')[1];
-                            } else {
-
-                                let a = fila[index][0].split(' ');
-                                a.pop();
-                                let key = a.join(' ');
-
-                                let value = utils.stringToNumber(fila[index][1].split(' ')[0]);
-                                let flag = fila[index][1].split(' ')[1];
-
-                                obj[`${key} value`] = value;
-                                obj[`${key} flag`] = flag;
-
-
-                            }
                         }
 
-                        //miramos de no añadir objetos vacíos
-                        if (Object.keys(obj).length !== 0 && obj.constructor === Object) {
-                            results.push(obj);
-                        }
-
-                    })
-                    .on('end', () => {
-
-
-                        // almacena los datos pasados de quinceminutales a horario
-                        let dataH = null;
-                        // almacena los datos pasados de horario a diario
-                        let dataD = null;
-                        // almacena los datos octohorarios máximos diarios
-                        let dataO = null;
-
-                        // vamos a hacer triaje y separar los archivos por quinceminutales y horarios. 
-                        //Para eso detectamos de que tipo son.
-                        let type = utils.checkFileType(file.name);
+                const csvWriter = createCsvWriter({
+                    path: `${outputDir}\\${contaminante.key}_horario.csv`,
+                    header,
+                    fieldDelimiter: ';'
+                });
+                csvWriter.writeRecords(contaminante.data)       // returns a promise
+                    .then(() => {
+                        console.log(`${contaminante.key}_horario.csv -- Escrito --`);
+                    });
 
 
 
-                        if (type == 'quinceminutales') { // si los ficheros son de tipo quinceminutales
+            });
 
-                            dataH = utils.quinceMinAHorario(results);
-                            dataD = utils.horarioADiario(dataH);
-                            dataO = utils.horaAOcto(dataH);
 
-                        } else if (type == 'horarios') { // si los ficheros son de tipo horario
 
-                            dataD = utils.horarioADiario(results);
-                            dataO = utils.horaAOcto(results);
-                        }
 
+
+
+            /* // TODO: REDISEÑAR A PARTIR DE AQUI . No mirar el código que hay a parti de aquí porque se va a rehacer.================================================
+
+                    
 
                         // ------------------------------- ESCRITURA --------------------------------------
                         // cabeceras generales usadas en la configuración de csv-writer
@@ -232,7 +203,7 @@
                         let csvWriter = null;
                         //-------------------
 
-                        // cabecera modificada para datos diarios. Se ha quitado la columna de "hora" //TODO: Este código no funciona y hay que arreglarlo
+                        // cabecera modificada para datos diarios. Se ha quitado la columna de "hora" 
                         let headerD = [...header];
                         headerD.splice(1, 1);
 
@@ -278,7 +249,7 @@
                         results = [];
 
                     });
-            });
+            }); */
         }
         alert("Finalización de creación de archivos")
     } // fin función "generar".

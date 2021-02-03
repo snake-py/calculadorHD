@@ -1,8 +1,8 @@
 const moment = require('moment');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
-//const csv = require('csv-parser');
 const parse = require('csv-parse/lib/sync');
 const fs = require('fs');
+const config = require("./config");
 
 
 const validFlags = ['V', 'O', 'R'];
@@ -34,11 +34,8 @@ const transform15mTo60m = files15m => {
     let arr = []
     files15m.forEach(file => {
 
-        // aquí guardamos el mismo "file" pero con las columnas separadas
-        let splitedFile = splitColumns(file);
-
         // pasamos sus datos a Horarios
-        let dataH = quinceMinAHorario(splitedFile.data); //TODO: seguir desde aquí cuando se termine de dividir las columnas
+        let dataH = quinceMinAHorario(file.data);
 
         file.data = dataH;
         file.type = "horarios";
@@ -55,7 +52,7 @@ const transform15mTo60m = files15m => {
  * trabajar con cada valor.
  * @param {Object array} files 
  */
-const splitColumns = file => {
+const splitColumns = file => {  
 
     if (!file) { return null }
 
@@ -81,11 +78,17 @@ const splitColumns = file => {
 
             } else {
 
+                // Como algunos titulos tienen espacio en blanco en medio, se extrae el titulo asi:
                 let splitedTitle = arrColumn[0].split(" ");
+                splitedTitle.pop(); // quitamos "flag" del array
+                let finalTitle = splitedTitle.join(" ");
+
                 let splitedValue = arrColumn[1].split(" ");
 
-                splitedRow[`${splitedTitle[0]} value`] = stringToNumber(splitedValue[0]);
-                splitedRow[`${splitedTitle[0]} flag`] = splitedValue[1];
+                /* aqui guardamos el valor. Si el archivo es de tipo horario, lo guardamos sin alterar. Si es quinceminutal, le cambiamos 
+                la coma por un punto para poder realizar operaciónes matemáticas en los siguientes pasos. */
+                splitedRow[`${finalTitle} value`] = file.type=="horarios"?splitedValue[0] :stringToNumber(splitedValue[0]);
+                splitedRow[`${finalTitle} flag`] = splitedValue[1];
             }
         });
         newData.push(splitedRow);
@@ -97,12 +100,13 @@ const splitColumns = file => {
 
 /**
  * Este método coge la lista de ficheros de entrada y prepara la estructura que se va a usar mas adelante
- * para fusionar los datos de los archivos que tengan en común el mismo contaminante.
+ * para fusionar los datos de los archivos que tengan en común el mismo contaminante. Es decir, agrupa 
+ * todos los paquetes de datos por contaminante.
  * @param {Array} files 
  */
 const mergeFilesByKeys = files => {
 
-    let array = []; // Contiene el la lista de contaminantes y sus datos agrupados pero no fusionados.
+    let array = []; // Contiene el la lista de contaminantes y sus datos agrupados pero no fusionados. La fusión se realiza mas abajo.
 
     files.forEach((file, indexFile, arrFiles) => {
 
@@ -125,7 +129,6 @@ const mergeFilesByKeys = files => {
         }
     });
 
-    console.log('array :>> ', array);
     // ahora que hemos agrupado los datos por contaminantes ( keys) debemos fusionarlos.
     let fusion = [] // aquí guardaremos la lista de contaminantes con sus respeticos datos fusionados.
     // recorremos cada contaminante
@@ -139,21 +142,18 @@ const mergeFilesByKeys = files => {
 
                 if (index2 == 0) { // cuando es el primer grupo de datos, lo guardamos entero incluido fecha y hora
                     dataFusion = file.data;
+                } else {
+                    // ahora añadiremos los datos de los siguientes grupos de datos pero sin repetir la columna de fecha y hora.
+                    file.data.forEach((row, index3) => {
+
+                        delete row.FECHA;
+                        delete row.HORA;
+
+                        Object.assign(dataFusion[index3], row)
+
+                    })
                 }
-                // ahora añadiremos los datos de los siguientes grupos de datos pero sin repetir la columna de fecha y hora.
-                //1º quitamos la fecha y hora de las filas
-                file.data.forEach((row, index3) => {
-
-                    delete row.FECHA;
-                    delete row.HORA;
-
-                    Object.assign(dataFusion[index3], row)
-
-                })
-
             });
-
-            console.log('dataFusion :>> ', dataFusion);
 
             fusion.push({
                 key: contam.key,
@@ -171,11 +171,10 @@ const mergeFilesByKeys = files => {
         }
 
     });
-    console.log('fusion :>> ', fusion); //TODO: Seguir desde aquí. Hacer una prueba a ver si se han fusionado bien los datos.
 
-
-
+    return fusion;
 };
+
 /**
  * Este método genera configuraciónes personalizadas para la escritura de los archivos csv.
  * @param {String} output 
@@ -191,6 +190,7 @@ const getCreateCsvWriter = (output, header) => {
 
 /**
  * Este método coge una lista de URLs de archivos, los lee y devuelve un array con todos sus datos separados, nombres, datos, etc.
+ * Pero las columnas siguen fusionadas. Por ejemplo fecha y hora siguen juntos. La separación de columnas se realiza en el método "splitColumns"
  * @param {*} arrayURLs 
  */
 const extractFiles = (arrayURLs) => {
@@ -297,64 +297,123 @@ const getColumTitles = (data) => {
     return uniqueColTi;
 }
 
+/**
+ * Recibe los contaminantes en formato horario y devuelve los contaminantes en formato diario.
+ * @param {Object Array} arrDat 
+ */
+const horarioADiario = (arrDat) => {
 
-const horarioADiario = (dataH) => {
-
-    // comprobación de que no esté vacio
-    if (dataH.length == 0) {
-        return null
-    };
-
-    let datosFin = []; //Aquí almacenamos los datos procesados que debemos retornar.    
-
-    //guardamos los titulos de las columnas
-    let columnTitles = getColumTitles(dataH);
-    //array de objetos que contienen los datos horarios. Usado como plantilla
-    let contadores = [];
-
-    //rellenamos\preparamos los "contadores" de cada estación
-    columnTitles.forEach(title => {
-
-        contadores.push({ //TODO: revisar si los campos fecha, hora y día al final se usan o si se pueden borrar de este método y el de quince minutales
-            titulo: title,
-            fecha: null, // estamos creado el equema de 24H. La fecha se la pondremos después
-            hora: null,
-            dia: null,
-            value: [], // contador de valores
-            flag: [], // contador de flags
-
-        })
-    });
-
-    let diaActual = null;
-    let fechaActual = null;
-
-    // recorremos los datos para ir operando con los datos
-    for (let i = 0; i < dataH.length; i++) {
-
-        // inicializamos guardando el primer día que se va a guardar
-        if (diaActual == null) {
-            diaActual = dataH[i].FECHA.split('-')[0];
-            fechaActual = dataH[i].FECHA;
-        }
+    // este es el array que va a ser devuelto por este método. Debe contener los contaminantes con los datos diarios.
+    let arrayFinal = []
+    // vamos a recorrer cada contaminante
+    arrDat.forEach(contaminante => {
 
 
-        // creamos unas variables que, comparandolas con la fecha y dia actual, indicarán si hemos cambiado de franja.
-        let diaTemp = dataH[i].FECHA.split('-')[0];//comprobamos que seguimos en el mismo tramo de hora
-        let fechaTemp = dataH[i].FECHA;
+        let cont = { key: contaminante.key, data: null };
+        let dataH = [...contaminante.data]
 
-        if (diaTemp == diaActual) { // Aquí programamos lo que ocurre cuando seguimos en la misma franja diaria
+        let datosFin = []; //Aquí almacenamos los datos procesados que debemos retornar.    
 
-            contadores.forEach((cont, index) => { //mientras estamos en el mismo periodo horario, sumamos los valores y flags
+        //guardamos los titulos de las columnas
+        let columnTitles = getColumTitles(dataH);
+        //array de objetos que contienen los datos horarios. Usado como plantilla
+        let contadores = [];
 
-                cont.value.push(stringToNumber(dataH[i][`${cont.titulo} value`])); // guardamos los valores para calcularlos depues
-                cont.flag.push(dataH[i][`${cont.titulo} flag`]);
+        //rellenamos\preparamos los "contadores" de cada estación
+        columnTitles.forEach(title => {
 
-            });
+            contadores.push({ 
+                titulo: title,
+                fecha: null, // estamos creado el equema de 24H. La fecha se la pondremos después
+                hora: null,
+                dia: null,
+                value: [], // contador de valores
+                flag: [], // contador de flags
 
-            // Cuando estamos al final del array y no hay cambio de día porque no hay mas datos, grabamos los últimos datos
-            if (i == dataH.length - 1) {
+            })
+        });
 
+        let diaActual = null;
+        let fechaActual = null;
+
+        // recorremos los datos para ir operando con los datos
+        for (let i = 0; i < dataH.length; i++) {
+
+            // inicializamos guardando el primer día que se va a guardar
+            if (diaActual == null) {
+                diaActual = dataH[i].FECHA.split('-')[0];
+                fechaActual = dataH[i].FECHA;
+            }
+
+
+            // creamos unas variables que, comparandolas con la fecha y dia actual, indicarán si hemos cambiado de franja.
+            let diaTemp = dataH[i].FECHA.split('-')[0];//comprobamos que seguimos en el mismo tramo de hora
+            let fechaTemp = dataH[i].FECHA;
+
+            if (diaTemp == diaActual) { // Aquí programamos lo que ocurre cuando seguimos en la misma franja diaria
+
+                contadores.forEach((cont, index) => { //mientras estamos en el mismo periodo horario, sumamos los valores y flags
+
+                    cont.value.push(stringToNumber(dataH[i][`${cont.titulo} value`])); // guardamos los valores para calcularlos depues
+                    cont.flag.push(dataH[i][`${cont.titulo} flag`]);
+
+                });
+
+                // Cuando estamos al final del array y no hay cambio de día porque no hay mas datos, grabamos los últimos datos
+                if (i == dataH.length - 1) {
+
+                    let objFin = { FECHA: fechaActual, DIA: diaActual }; // creamos un objeto basico al que ir completando
+
+
+                    contadores.forEach(cont => { //recorremos los contadores para hacer medias con las flags y values
+
+                        let valueFinal = null;
+                        let flagFinal = null;
+
+                        // vamos a comporbar los valores. que hayan minimo 3, que de esos los 3 sean validos
+                        if (cont.value.length < 18) { //si hay menos de 75% (18), directamente los marcamos como inválidos.
+                            valueFinal = -9999;
+                            flagFinal = 'N';
+                        } else { // si hay 18 (75%) o más valores, debemos comprobar su contenido
+
+                            let sumaValue = 0; // la suma de los valores que son correctos
+                            let numValValid = 0; // contador de valores válidos
+
+
+                            for (let j = 0; j < cont.value.length; j++) { // recorremos los 18 valores almacenados
+
+                                if (validFlags.includes(cont.flag[j])) { // si la flag es válida
+
+                                    sumaValue += cont.value[j]; // sumamos el valor valido
+                                    numValValid++; // aumentamos el contador de valores validos
+
+                                }
+
+                            }
+
+                            //operaciónes finales                    
+                            if (numValValid < 18) { //si tenemos menos de 3 valores validos, no llega al mínimo de 75%. Por lo tanto es inválido
+
+                                valueFinal = -9999;
+                                flagFinal = 'N';
+
+                            } else {
+
+                                valueFinal = `${(Math.round((sumaValue / numValValid) * 100) / 100).toFixed(2)}`.replace('.', ',');
+                                flagFinal = 'V';
+
+                            }
+                        }
+                        objFin[`${cont.titulo} value`] = valueFinal;
+                        objFin[`${cont.titulo} flag`] = flagFinal;
+
+
+                    });
+
+                    datosFin.push(objFin);
+                }
+
+            } else { // Aquí programamos lo que ocurre cuando cambiamos de hora 
                 let objFin = { FECHA: fechaActual, DIA: diaActual }; // creamos un objeto basico al que ir completando
 
 
@@ -404,86 +463,36 @@ const horarioADiario = (dataH) => {
                 });
 
                 datosFin.push(objFin);
+
+                //reiniciamos los valores 
+                contadores.forEach(cont => {
+
+                    cont.value = [];
+                    cont.flag = [];
+
+                });
+
+                //introducimos los datos de este primer cambio de hora
+                contadores.forEach(cont => { // añadimos el último valor de este periodo horario a todos los contadores
+
+                    cont.value.push(stringToNumber(dataH[i][`${cont.titulo} value`]));
+                    cont.flag.push(dataH[i][`${cont.titulo} flag`]);
+
+                });
+
+                //reiniciamos los datos para el siguiente cambio de dia
+                //diaActual = diaTemp == '24' ? '00' : diaTemp;
+                diaActual = diaTemp
+                fechaActual = fechaTemp;
             }
-
-        } else { // Aquí programamos lo que ocurre cuando cambiamos de hora //TODO: hacer que cuando se guarde, la fecha y la hora estén juntas en la misma columna y ponerle el formato de hora:minutos.
-
-            let objFin = { FECHA: fechaActual, DIA: diaActual }; // creamos un objeto basico al que ir completando
-
-
-            contadores.forEach(cont => { //recorremos los contadores para hacer medias con las flags y values
-
-                let valueFinal = null;
-                let flagFinal = null;
-
-                // vamos a comporbar los valores. que hayan minimo 3, que de esos los 3 sean validos
-                if (cont.value.length < 18) { //si hay menos de 75% (18), directamente los marcamos como inválidos.
-                    valueFinal = -9999;
-                    flagFinal = 'N';
-                } else { // si hay 18 (75%) o más valores, debemos comprobar su contenido
-
-                    let sumaValue = 0; // la suma de los valores que son correctos
-                    let numValValid = 0; // contador de valores válidos
-
-
-                    for (let j = 0; j < cont.value.length; j++) { // recorremos los 18 valores almacenados
-
-                        if (validFlags.includes(cont.flag[j])) { // si la flag es válida
-
-                            sumaValue += cont.value[j]; // sumamos el valor valido
-                            numValValid++; // aumentamos el contador de valores validos
-
-                        }
-
-                    }
-
-                    //operaciónes finales                    
-                    if (numValValid < 18) { //si tenemos menos de 3 valores validos, no llega al mínimo de 75%. Por lo tanto es inválido
-
-                        valueFinal = -9999;
-                        flagFinal = 'N';
-
-                    } else {
-
-                        valueFinal = `${(Math.round((sumaValue / numValValid) * 100) / 100).toFixed(2)}`.replace('.', ',');
-                        flagFinal = 'V';
-
-                    }
-                }
-                objFin[`${cont.titulo} value`] = valueFinal;
-                objFin[`${cont.titulo} flag`] = flagFinal;
-
-
-            });
-
-            datosFin.push(objFin);
-
-            //reiniciamos los valores 
-            contadores.forEach(cont => {
-
-                cont.value = [];
-                cont.flag = [];
-
-            });
-
-            //introducimos los datos de este primer cambio de hora
-            contadores.forEach(cont => { // añadimos el último valor de este periodo horario a todos los contadores
-
-                cont.value.push(stringToNumber(dataH[i][`${cont.titulo} value`]));
-                cont.flag.push(dataH[i][`${cont.titulo} flag`]);
-
-            });
-
-            //reiniciamos los datos para el siguiente cambio de dia
-            //diaActual = diaTemp == '24' ? '00' : diaTemp;
-            diaActual = diaTemp
-            fechaActual = fechaTemp;
-
-
         }
-    }
 
-    return datosFin;
+        cont.data = datosFin;
+        arrayFinal.push(cont);
+
+    });
+
+    return arrayFinal;
 
 }
 
@@ -543,7 +552,7 @@ const quinceMinAHorario = (data15m) => {
 
             contadores.forEach(cont => { //mientras estamos en el mismo periodo horario, sumamos los valores y flags
 
-                cont.value.push(data15m[i][`${cont.titulo} value`]); // guardamos los valores para calcularlos depues
+                cont.value.push(data15m[i][`${cont.titulo} value`]); // guardamos los valores para calcularlos depués
                 cont.flag.push(data15m[i][`${cont.titulo} flag`]);
 
             });
@@ -629,207 +638,222 @@ const quinceMinAHorario = (data15m) => {
  * Recoge los datos horarios y devuelve los datos transformados a octohorarios máximos diarios
  * @param {Array object} dataH 
  */
-const horaAOcto = (dataH) => {
+const horaAOcto = (arrDat) => {
 
-    // comprobación de que no esté vacio
-    if (dataH.length == 0) {
-        return null
-    };
-    // creamos una copia invertida de los datos 
-    let invData = [...dataH].reverse();
+    // este es el array que va a ser devuelto por este método. Debe contener los contaminantes con los datos diarios.
+    let arrayFinal = []
+    // vamos a recorrer cada contaminante
+    arrDat.forEach(contaminante => {
 
-    //Aquí almacenamos los datos procesados que debemos retornar.    
-    let datosFin = [];
-    // Aquí almacenamos los datos final del primer paso. Es decir el de las medias Octohorarias.
-    let datosFinOcto = [];
+        //solo vamos a pasar a 8horario los que tengamos en la lista de configuración
+        if (config.cont8hList.includes(contaminante.key)) {
 
-    //guardamos los titulos de las columnas
-    let columnTitles = getColumTitles(dataH);
-    //array de objetos que contienen los datos horarios. Usado como plantilla
-    let contadores = [];
+            let cont = { key: contaminante.key, data: null };
+            let dataH = [...contaminante.data]
 
-    //rellenamos\preparamos los "contadores" de cada estación
-    columnTitles.forEach(title => {
+            // comprobación de que no esté vacio
+            if (dataH.length == 0) {
+                return null
+            };
+            // creamos una copia invertida de los datos 
+            let invData = [...dataH].reverse();
 
-        contadores.push({ //TODO: revisar si los campos fecha, hora y día al final se usan o si se pueden borrar de este método y el de quince minutales
-            titulo: title,
-            fecha: null, // estamos creado el equema de 24H. La fecha se la pondremos después
-            hora: null,
-            dia: null,
-            value: [], // contador de valores
-            flag: [], // contador de flags
+            //Aquí almacenamos los datos procesados que debemos retornar.    
+            let datosFin = [];
+            // Aquí almacenamos los datos final del primer paso. Es decir el de las medias Octohorarias.
+            let datosFinOcto = [];
 
-        })
-    });
+            //guardamos los titulos de las columnas
+            let columnTitles = getColumTitles(dataH);
+            //array de objetos que contienen los datos horarios. Usado como plantilla
+            let contadores = [];
 
-    //recorremos todos los datos
-    for (let i = 0; i <= invData.length - 24; i++) { // quitamos 1 día porque es un día extra añadido solo para calcular los octohorarios.
+            //rellenamos\preparamos los "contadores" de cada estación
+            columnTitles.forEach(title => {
 
-        let objOcto = { FECHA: invData[i].FECHA, HORA: invData[i].HORA };
+                contadores.push({ 
+                    titulo: title,
+                    fecha: null, // estamos creado el equema de 24H. La fecha se la pondremos después
+                    hora: null,
+                    dia: null,
+                    value: [], // contador de valores
+                    flag: [], // contador de flags
 
-        // trabajamos los datos en bloques de 8
-        for (let j = 0; j < 8; j++) {
-
-            // guardamos los valores y flags en cada contador
-            contadores.forEach(cont => {
-                cont.value.push(stringToNumber(invData[i + j][`${cont.titulo} value`]))
-                cont.flag.push(invData[i + j][`${cont.titulo} flag`])
+                })
             });
-        }
-        // volvemos a pasar por los contadores, pero esta vez para hacer las medias
-        contadores.forEach(cont => {
 
+            //recorremos todos los datos
+            for (let i = 0; i <= invData.length - 24; i++) { // quitamos 1 día porque es un día extra añadido solo para calcular los octohorarios.
 
-            let sumaValue = 0; //suma de todos los números válidos    
-            let numValValid = 0; // contadore de números válidos. Usado para hayar la media.
+                let objOcto = { FECHA: invData[i].FECHA, HORA: invData[i].HORA };
 
-            // contamos y sumamos los valores validos
-            for (let k = 0; k < cont.value.length; k++) {
+                // trabajamos los datos en bloques de 8
+                for (let j = 0; j < 8; j++) {
 
-                if (validFlags.includes(cont.flag[k])) { // si la flag es válida
-
-                    sumaValue += cont.value[k]; // sumamos el valor valido
-                    numValValid++; // aumentamos el contador de valores validos
-
+                    // guardamos los valores y flags en cada contador
+                    contadores.forEach(cont => {
+                        cont.value.push(stringToNumber(invData[i + j][`${cont.titulo} value`]))
+                        cont.flag.push(invData[i + j][`${cont.titulo} flag`])
+                    });
                 }
-            }
-
-            let valueFinOcto = null;
-            let flagFinOcto = null;
-            //hacemos los cálculos finales 
-            if (numValValid < 6) {
-
-                valueFinOcto = -9999;
-                flagFinOcto = 'N';
-
-            } else {
-
-                valueFinOcto = `${(Math.round((sumaValue / numValValid) * 100) / 100).toFixed(2)}`;
-                flagFinOcto = 'V';
-
-            }
-            objOcto[`${cont.titulo} value`] = valueFinOcto;
-            objOcto[`${cont.titulo} flag`] = flagFinOcto;
-        });
-
-        datosFinOcto.push(objOcto);
-        // reiniciamos los contadores para el siguiente periodo de 8
-        contadores.forEach(cont => {
-
-            cont.value = [];
-            cont.flag = [];
-
-        });
-
-    }
-
-    let fechaAc = null;
-    let diaAc = null;
+                // volvemos a pasar por los contadores, pero esta vez para hacer las medias
+                contadores.forEach(cont => {
 
 
-    // ahora que tenemos los octohorarios calculados, sacaremos la máxima diaria y 
-    // devolveremos un formato diario.-----------------------------------------------
-    for (let m = 0; m < datosFinOcto.length; m++) {
+                    let sumaValue = 0; //suma de todos los números válidos    
+                    let numValValid = 0; // contadore de números válidos. Usado para hayar la media.
 
+                    // contamos y sumamos los valores validos
+                    for (let k = 0; k < cont.value.length; k++) {
 
-        // iniciamos la primera vez
-        if (diaAc == null) {
-            fechaAc = datosFinOcto[m].FECHA;
-            diaAc = datosFinOcto[m].FECHA.split('-')[0];
-        }
+                        if (validFlags.includes(cont.flag[k])) { // si la flag es válida
 
-        let diaTemp2 = datosFinOcto[m].FECHA.split('-')[0];
-        let fechaTemp2 = datosFinOcto[m].FECHA;
-
-        if (diaTemp2 == diaAc) { // cuando trabajamos en el mismo día
-
-            contadores.forEach(cont => { //mientras estemos en el mismo día, sumamos los valores y flags
-
-                cont.value.push(stringToNumber(datosFinOcto[m][`${cont.titulo} value`])); // guardamos los valores para calcularlos depues
-                cont.flag.push(datosFinOcto[m][`${cont.titulo} flag`]);
-
-            });
-
-
-        } else {// cuando cambiamos de día
-
-
-            let objFin = { FECHA: fechaAc, HORA: '' }; // creamos un objeto basico al que ir completando
-
-            //Calculamos los máximos
-            contadores.forEach(cont => {
-
-                let valueFinal = null;
-                let flagFinal = null;
-
-                if (cont.value.length < 18) {// si no hay un mínimo de valores
-
-                    valueFinal = -9999;
-                    flagFinal = 'N';
-
-                } else { // si hay un minimo de valores, comprobamos su contenido
-
-                    let numValValid = 0; // contador de valores válidos
-
-                    // recorremos los valores almacenados dentro de ese contador
-                    for (let n = 0; n < cont.value.length; n++) {
-
-                        if (validFlags.includes(cont.flag[n])) { // si la flag es válida
-
+                            sumaValue += cont.value[k]; // sumamos el valor valido
                             numValValid++; // aumentamos el contador de valores validos
 
                         }
                     }
 
-                    //operaciónes finales                    
-                    if (numValValid < 18) { //si tenemos menos de 3 valores validos, no llega al mínimo de 75%. Por lo tanto es inválido
+                    let valueFinOcto = null;
+                    let flagFinOcto = null;
+                    //hacemos los cálculos finales 
+                    if (numValValid < 6) {
 
-                        valueFinal = -9999;
-                        flagFinal = 'N';
+                        valueFinOcto = -9999;
+                        flagFinOcto = 'N';
 
                     } else {
 
-                        /* valueFinal = `${(Math.round((sumaValue / numValValid) * 100) / 100).toFixed(2)}`.replace('.', ',');
-                         */
-                        valueFinal = `${(Math.max(...cont.value)).toFixed(2)}`.replace('.', ',');
-                        flagFinal = 'V';
+                        valueFinOcto = `${(Math.round((sumaValue / numValValid) * 100) / 100).toFixed(2)}`;
+                        flagFinOcto = 'V';
 
                     }
+                    objOcto[`${cont.titulo} value`] = valueFinOcto;
+                    objOcto[`${cont.titulo} flag`] = flagFinOcto;
+                });
+
+                datosFinOcto.push(objOcto);
+                // reiniciamos los contadores para el siguiente periodo de 8
+                contadores.forEach(cont => {
+
+                    cont.value = [];
+                    cont.flag = [];
+
+                });
+
+            }
+
+            let fechaAc = null;
+            let diaAc = null;
+
+
+            // ahora que tenemos los octohorarios calculados, sacaremos la máxima diaria y 
+            // devolveremos un formato diario.-----------------------------------------------
+            for (let m = 0; m < datosFinOcto.length; m++) {
+
+
+                // iniciamos la primera vez
+                if (diaAc == null) {
+                    fechaAc = datosFinOcto[m].FECHA;
+                    diaAc = datosFinOcto[m].FECHA.split('-')[0];
                 }
-                objFin[`${cont.titulo} value`] = valueFinal;
-                objFin[`${cont.titulo} flag`] = flagFinal;
 
-            });
+                let diaTemp2 = datosFinOcto[m].FECHA.split('-')[0];
+                let fechaTemp2 = datosFinOcto[m].FECHA;
 
-            //guardamos la fila en los datos finales
-            datosFin.push(objFin)
+                if (diaTemp2 == diaAc) { // cuando trabajamos en el mismo día
 
-            //reiniciamos los contadores para almacenar el siguiente día
-            contadores.forEach(cont => {
+                    contadores.forEach(cont => { //mientras estemos en el mismo día, sumamos los valores y flags
 
-                cont.value = [];
-                cont.flag = [];
+                        cont.value.push(stringToNumber(datosFinOcto[m][`${cont.titulo} value`])); // guardamos los valores para calcularlos depues
+                        cont.flag.push(datosFinOcto[m][`${cont.titulo} flag`]);
 
-            });
+                    });
 
-            //guardamos los datos de este nuevo día
-            contadores.forEach(cont => { //mientras estemos en el mismo día, sumamos los valores y flags
 
-                cont.value.push(stringToNumber(datosFinOcto[m][`${cont.titulo} value`])); // guardamos los valores para calcularlos depues
-                cont.flag.push(datosFinOcto[m][`${cont.titulo} flag`]);
+                } else {// cuando cambiamos de día
 
-            });
 
-            //actualizamos la fecha a este nuevo día
-            fechaAc = datosFinOcto[m].FECHA;
-            diaAc = datosFinOcto[m].FECHA.split('-')[0];
+                    let objFin = { FECHA: fechaAc, HORA: '' }; // creamos un objeto basico al que ir completando
+
+                    //Calculamos los máximos
+                    contadores.forEach(cont => {
+
+                        let valueFinal = null;
+                        let flagFinal = null;
+
+                        if (cont.value.length < 18) {// si no hay un mínimo de valores
+
+                            valueFinal = -9999;
+                            flagFinal = 'N';
+
+                        } else { // si hay un minimo de valores, comprobamos su contenido
+
+                            let numValValid = 0; // contador de valores válidos
+
+                            // recorremos los valores almacenados dentro de ese contador
+                            for (let n = 0; n < cont.value.length; n++) {
+
+                                if (validFlags.includes(cont.flag[n])) { // si la flag es válida
+
+                                    numValValid++; // aumentamos el contador de valores validos
+
+                                }
+                            }
+
+                            //operaciónes finales                    
+                            if (numValValid < 18) { //si tenemos menos de 3 valores validos, no llega al mínimo de 75%. Por lo tanto es inválido
+
+                                valueFinal = -9999;
+                                flagFinal = 'N';
+
+                            } else {
+
+                                /* valueFinal = `${(Math.round((sumaValue / numValValid) * 100) / 100).toFixed(2)}`.replace('.', ',');
+                                 */
+                                valueFinal = `${(Math.max(...cont.value)).toFixed(2)}`.replace('.', ',');
+                                flagFinal = 'V';
+
+                            }
+                        }
+                        objFin[`${cont.titulo} value`] = valueFinal;
+                        objFin[`${cont.titulo} flag`] = flagFinal;
+
+                    });
+
+                    //guardamos la fila en los datos finales
+                    datosFin.push(objFin)
+
+                    //reiniciamos los contadores para almacenar el siguiente día
+                    contadores.forEach(cont => {
+
+                        cont.value = [];
+                        cont.flag = [];
+
+                    });
+
+                    //guardamos los datos de este nuevo día
+                    contadores.forEach(cont => { //mientras estemos en el mismo día, sumamos los valores y flags
+
+                        cont.value.push(stringToNumber(datosFinOcto[m][`${cont.titulo} value`])); // guardamos los valores para calcularlos depues
+                        cont.flag.push(datosFinOcto[m][`${cont.titulo} flag`]);
+
+                    });
+
+                    //actualizamos la fecha a este nuevo día
+                    fechaAc = datosFinOcto[m].FECHA;
+                    diaAc = datosFinOcto[m].FECHA.split('-')[0];
+                }
+
+
+
+            }
+            datosFin.reverse();
+            cont.data = datosFin;
+            arrayFinal.push(cont);
         }
-
-
-
-    }
-    datosFin.reverse();
-    return datosFin;
+    });
+    return arrayFinal;
 }
 
 
