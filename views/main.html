@@ -12,8 +12,8 @@
     <div id="maincontainer" class="m-4">
 
         <!-- TOASTS -->
-        <div id="snackbar2" class="toast">Comenzando cálculos y grabación. Por favor, espere.</div>
-        <div id="snackbar" class="toast">Archivos grabados correctamente</div>
+        <div id="snackbar2" class="tostadas" > Comenzando cálculos y grabación. Por favor, espere.</div> <!-- TODO:nofunciona -->
+        <div id="snackbar" class="tostadas" > Archivos grabados correctamente</div>
         <!-- FIN TOASTS -->
 
         <div class="mt-3">
@@ -80,9 +80,6 @@
     const createCsvWriter = require('csv-writer').createObjectCsvWriter; // movido a utils //TODO: ver si hace falta y si lo tenemos que borrar de utils
     const fs = require('fs');
 
-
-
-
     let fileList = null; // donde vamos a almacenar los archivos seleccionados   
     let filesData = null;  // donde guardamos los nombres de los archivos, ruta y contaminante
     let contaminantes = null; // aquí es donde guardamos todos los datos fusionados por contaminantes.   
@@ -123,10 +120,12 @@
         //TOAST Inicialización ====
         let y = document.getElementById("snackbar2");
         // Add the "show" class to DIV
-        y.className = "show";
+        y.className =y.className+" show";
         // After 3 seconds, remove the show class from DIV
-        setTimeout(function () { y.className = y.className.replace("show", ""); }, 3000);
+        setTimeout(function () { y.className = y.className.replace(" show", ""); }, 3000);
         // FIN TOAST
+        console.log("textooooooooo");
+        
 
 
 
@@ -248,9 +247,9 @@
         //TOAST====
         let x = document.getElementById("snackbar");
         // Add the "show" class to DIV
-        x.className = "show";
+        x.className = x.className+" show";
         // After 3 seconds, remove the show class from DIV
-        setTimeout(function () { x.className = x.className.replace("show", ""); }, 3000);
+        setTimeout(function () { x.className = x.className.replace(" show", ""); }, 3000);
 
 
     } // fin función "generar".
@@ -272,14 +271,14 @@
         text-decoration: none;
     }
 
-    .toast {
-        visibility: hidden;
+    .tostadas {
+        display: none;
         /* Hidden by default. Visible on click */
         min-width: 250px;
         /* Set a default minimum width */
         margin-left: -125px;
         /* Divide value of min-width by 2 */
-        background-color: #333;
+        background-color: rgb(2, 71, 0);
         /* Black background color */
         color: #fff;
         /* White text color */
@@ -300,14 +299,15 @@
     }
 
     /* Show the snackbar when clicking on a button (class added with JavaScript) */
-    .toast.show {
-        visibility: visible;
+    .show {
+        display: block;
         /* Show the snackbar */
         /* Add animation: Take 0.5 seconds to fade in and out the snackbar.
         However, delay the fade out process for 2.5 seconds */
         -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
         animation: fadein 0.5s, fadeout 0.5s 2.5s;
     }
+
 
     /* Animations to fade the snackbar in and out */
     @-webkit-keyframes fadein {
