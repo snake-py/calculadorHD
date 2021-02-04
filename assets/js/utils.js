@@ -52,10 +52,9 @@ const transform15mTo60m = files15m => {
  * trabajar con cada valor.
  * @param {Object array} files 
  */
-const splitColumns = file => {  
+const splitColumns = file => {
 
     if (!file) { return null }
-
 
     // aquí almacenaremos los datos ya divididos
     let newData = [];
@@ -87,7 +86,7 @@ const splitColumns = file => {
 
                 /* aqui guardamos el valor. Si el archivo es de tipo horario, lo guardamos sin alterar. Si es quinceminutal, le cambiamos 
                 la coma por un punto para poder realizar operaciónes matemáticas en los siguientes pasos. */
-                splitedRow[`${finalTitle} value`] = file.type=="horarios"?splitedValue[0] :stringToNumber(splitedValue[0]);
+                splitedRow[`${finalTitle} value`] = file.type == "horarios" ? splitedValue[0] : stringToNumber(splitedValue[0]);
                 splitedRow[`${finalTitle} flag`] = splitedValue[1];
             }
         });
@@ -322,7 +321,7 @@ const horarioADiario = (arrDat) => {
         //rellenamos\preparamos los "contadores" de cada estación
         columnTitles.forEach(title => {
 
-            contadores.push({ 
+            contadores.push({
                 titulo: title,
                 fecha: null, // estamos creado el equema de 24H. La fecha se la pondremos después
                 hora: null,
@@ -671,7 +670,7 @@ const horaAOcto = (arrDat) => {
             //rellenamos\preparamos los "contadores" de cada estación
             columnTitles.forEach(title => {
 
-                contadores.push({ 
+                contadores.push({
                     titulo: title,
                     fecha: null, // estamos creado el equema de 24H. La fecha se la pondremos después
                     hora: null,

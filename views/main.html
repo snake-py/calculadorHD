@@ -11,6 +11,11 @@
 <body>
     <div id="maincontainer" class="m-4">
 
+        <!-- TOASTS -->
+        <div id="snackbar2" class="toast">Comenzando cálculos y grabación. Por favor, espere.</div>
+        <div id="snackbar" class="toast">Archivos grabados correctamente</div>
+        <!-- FIN TOASTS -->
+
         <div class="mt-3">
 
             <div class="numeracion">1</div>
@@ -41,7 +46,9 @@
                     <label class="form-check-label" for="octohorarios">octohorarios</label>
                 </div>
             </div>
-            <button class="btn btn-success btn-sm m-1 mt-3" id="btnGenerar" onclick="generar()">Generar</button>
+            <button class="btn btn-success btn-sm m-1 mt-3" id="btnGenerar" onclick="generar()">
+                Generar
+            </button>
 
         </form>
         <hr>
@@ -69,7 +76,7 @@
 <script>
 
     const { dialog } = require('electron').remote
-    const utils = require('../assets/js/utils.js');    
+    const utils = require('../assets/js/utils.js');
     const createCsvWriter = require('csv-writer').createObjectCsvWriter; // movido a utils //TODO: ver si hace falta y si lo tenemos que borrar de utils
     const fs = require('fs');
 
@@ -112,6 +119,16 @@
 
     // genera los documentos 
     function generar() {
+
+        //TOAST Inicialización ====
+        let y = document.getElementById("snackbar2");
+        // Add the "show" class to DIV
+        y.className = "show";
+        // After 3 seconds, remove the show class from DIV
+        setTimeout(function () { y.className = y.className.replace("show", ""); }, 3000);
+        // FIN TOAST
+
+
 
         if (!fileList || !outputDir) {
 
@@ -162,96 +179,80 @@
             // ======================================ESCRITURA DE DATOS A FICHEROS ====================================================
 
             // grabación de datos horarios
-            datosHorarios.forEach(contaminante => { //TODO: agregar este ejemplo a los apuntes
-                let header=[]
+            if (horarios == true) { // si el usuario ha seleccionado la opción de "horarios", los grabamos
 
-                for (const [key, value] of Object.entries(contaminante.data[0])) {
-                            header.push({ id: `${key}`, title: `${key}` })
+                datosHorarios.forEach(contaminante => { //TODO: agregar este ejemplo a los apuntes
+                    let header = []
+                    for (const [key, value] of Object.entries(contaminante.data[0])) {
+                        header.push({ id: `${key}`, title: `${key}` })
 
-                        }
+                    }
 
-                const csvWriter = createCsvWriter({
-                    path: `${outputDir}\\${contaminante.key}_horario.csv`,
-                    header,
-                    fieldDelimiter: ';'
+                    const csvWriter = createCsvWriter({
+                        path: `${outputDir}\\${contaminante.key}_horario.csv`,
+                        header,
+                        fieldDelimiter: ';'
+                    });
+                    csvWriter.writeRecords(contaminante.data)       // returns a promise
+                        .then(() => {
+                            console.log(`${contaminante.key}_horario.csv -- Escrito --`);
+                        });
                 });
-                csvWriter.writeRecords(contaminante.data)       // returns a promise
-                    .then(() => {
-                        console.log(`${contaminante.key}_horario.csv -- Escrito --`);
+            }
+
+            //grabación de datos diarios
+            if (diarios == true) {
+                datosDiarios.forEach(contaminante => { //TODO: agregar este ejemplo a los apuntes
+                    let header = []
+                    for (const [key, value] of Object.entries(contaminante.data[0])) {
+                        header.push({ id: `${key}`, title: `${key}` })
+
+                    }
+
+                    const csvWriter = createCsvWriter({
+                        path: `${outputDir}\\${contaminante.key}_diario.csv`,
+                        header,
+                        fieldDelimiter: ';'
                     });
+                    csvWriter.writeRecords(contaminante.data)       // returns a promise
+                        .then(() => {
+                            console.log(`${contaminante.key}_diario.csv -- Escrito --`);
+                        });
+                });
+            }
 
 
+            //grabación de datos octohorarios
+            if (octohorarios == true) {
+                datosOctohorarios.forEach(contaminante => { //TODO: agregar este ejemplo a los apuntes
+                    let header = []
+                    for (const [key, value] of Object.entries(contaminante.data[0])) {
+                        header.push({ id: `${key}`, title: `${key}` })
 
-            });
+                    }
 
-
-
-
-
-
-            /* // TODO: REDISEÑAR A PARTIR DE AQUI . No mirar el código que hay a parti de aquí porque se va a rehacer.================================================
-
-                    
-
-                        // ------------------------------- ESCRITURA --------------------------------------
-                        // cabeceras generales usadas en la configuración de csv-writer
-                        let header = [];
-                        for (const [key, value] of Object.entries(results[1])) {
-                            header.push({ id: `${key}`, title: `${key}` })
-
-                        }
-                        let csvWriter = null;
-                        //-------------------
-
-                        // cabecera modificada para datos diarios. Se ha quitado la columna de "hora" 
-                        let headerD = [...header];
-                        headerD.splice(1, 1);
-
-
-                        // escribimos el archivo
-                        if (type == 'quinceminutales') { // si los ficheros son de tipo quinceminutales
-
-                            //miramos que opciones a seleccionado el usuario para imprimir
-                            if (horarios == true) {
-                                // Quinceminutal a horario
-                                csvWriter = utils.getCreateCsvWriter(`${outputDir}\\${file.name}A_horario.csv`, header);
-                                csvWriter.writeRecords(dataH).then(() => console.log(`${file.name}A_horario.csv grabado`));
-                            }
-
-                            if (diarios == true) {
-                                // horario a diario
-                                csvWriter = utils.getCreateCsvWriter(`${outputDir}\\${file.name}A_Diario.csv`, header);
-                                csvWriter.writeRecords(dataD).then(() => console.log(`${file.name}A_Diario.csv grabado`))
-                            }
-
-                            if (octohorarios == true) {
-                                // Quinceminutal a octoHorario
-                                csvWriter = utils.getCreateCsvWriter(`${outputDir}\\${file.name}A_octoHorario.csv`, header);
-                                csvWriter.writeRecords(dataO).then(() => console.log(`${file.name}A_octoHorario.csv grabado`));
-                            }
-
-                        } else if (type == 'horarios') { // si los ficheros son de tipo horario
-
-                            if (diarios == true) {
-                                // horario a diario
-                                csvWriter = utils.getCreateCsvWriter(`${outputDir}\\${file.name}A_Diario.csv`, header);
-                                csvWriter.writeRecords(dataD).then(() => console.log(`${file.name}A_Diario.csv grabado`));
-                            }
-
-                            if (octohorarios == true) {
-                                // horarios a octoHorario
-                                csvWriter = utils.getCreateCsvWriter(`${outputDir}\\${file.name}A_octoHorario.csv`, header);
-                                csvWriter.writeRecords(dataO).then(() => console.log(`${file.name}A_octoHorario.csv grabado`));
-                            }
-
-                        }
-                        //limpiamos el array
-                        results = [];
-
+                    const csvWriter = createCsvWriter({
+                        path: `${outputDir}\\${contaminante.key}_octohorarios.csv`,
+                        header,
+                        fieldDelimiter: ';'
                     });
-            }); */
+                    csvWriter.writeRecords(contaminante.data)       // returns a promise
+                        .then(() => {
+                            console.log(`${contaminante.key}_octohorarios.csv -- Escrito --`);
+                        });
+                });
+            }
+
         }
-        alert("Finalización de creación de archivos")
+
+        //TOAST====
+        let x = document.getElementById("snackbar");
+        // Add the "show" class to DIV
+        x.className = "show";
+        // After 3 seconds, remove the show class from DIV
+        setTimeout(function () { x.className = x.className.replace("show", ""); }, 3000);
+
+
     } // fin función "generar".
 
 
@@ -269,6 +270,92 @@
         font-size: 14px;
         font-weight: bold;
         text-decoration: none;
+    }
+
+    .toast {
+        visibility: hidden;
+        /* Hidden by default. Visible on click */
+        min-width: 250px;
+        /* Set a default minimum width */
+        margin-left: -125px;
+        /* Divide value of min-width by 2 */
+        background-color: #333;
+        /* Black background color */
+        color: #fff;
+        /* White text color */
+        text-align: center;
+        /* Centered text */
+        border-radius: 2px;
+        /* Rounded borders */
+        padding: 16px;
+        /* Padding */
+        position: fixed;
+        /* Sit on top of the screen */
+        z-index: 1;
+        /* Add a z-index if needed */
+        left: 50%;
+        /* Center the snackbar */
+        bottom: 30px;
+        /* 30px from the bottom */
+    }
+
+    /* Show the snackbar when clicking on a button (class added with JavaScript) */
+    .toast.show {
+        visibility: visible;
+        /* Show the snackbar */
+        /* Add animation: Take 0.5 seconds to fade in and out the snackbar.
+        However, delay the fade out process for 2.5 seconds */
+        -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        animation: fadein 0.5s, fadeout 0.5s 2.5s;
+    }
+
+    /* Animations to fade the snackbar in and out */
+    @-webkit-keyframes fadein {
+        from {
+            bottom: 0;
+            opacity: 0;
+        }
+
+        to {
+            bottom: 30px;
+            opacity: 1;
+        }
+    }
+
+    @keyframes fadein {
+        from {
+            bottom: 0;
+            opacity: 0;
+        }
+
+        to {
+            bottom: 30px;
+            opacity: 1;
+        }
+    }
+
+    @-webkit-keyframes fadeout {
+        from {
+            bottom: 30px;
+            opacity: 1;
+        }
+
+        to {
+            bottom: 0;
+            opacity: 0;
+        }
+    }
+
+    @keyframes fadeout {
+        from {
+            bottom: 30px;
+            opacity: 1;
+        }
+
+        to {
+            bottom: 0;
+            opacity: 0;
+        }
     }
 </style>
 
