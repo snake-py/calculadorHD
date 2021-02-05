@@ -12,8 +12,10 @@
     <div id="maincontainer" class="m-4">
 
         <!-- TOASTS -->
-        <div id="snackbar2" class="tostadas" > Comenzando cálculos y grabación. Por favor, espere.</div> <!-- TODO:nofunciona -->
-        <div id="snackbar" class="tostadas" > Archivos grabados correctamente</div>
+        <div id="snackbar2" class="tostadas" > 
+            Comenzando cálculos y grabación. Por favor, espere.</div> <!-- TODO:nofunciona -->
+        <div id="snackbar" class="tostadas" > 
+            Archivos grabados correctamente</div>
         <!-- FIN TOASTS -->
 
         <div class="mt-3">
@@ -120,9 +122,9 @@
         //TOAST Inicialización ====
         let y = document.getElementById("snackbar2");
         // Add the "show" class to DIV
-        y.className =y.className+" show";
+        y.classList.add("show");
         // After 3 seconds, remove the show class from DIV
-        setTimeout(function () { y.className = y.className.replace(" show", ""); }, 3000);
+        setTimeout(function () { y.classList.remove("show"); }, 1000);
         // FIN TOAST
         console.log("textooooooooo");
         
@@ -247,9 +249,9 @@
         //TOAST====
         let x = document.getElementById("snackbar");
         // Add the "show" class to DIV
-        x.className = x.className+" show";
+        x.classList.add("show");
         // After 3 seconds, remove the show class from DIV
-        setTimeout(function () { x.className = x.className.replace(" show", ""); }, 3000);
+        setTimeout(function () { x.classList.remove("show"); }, 1000);
 
 
     } // fin función "generar".
