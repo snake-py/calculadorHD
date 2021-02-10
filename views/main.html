@@ -81,11 +81,23 @@
     const utils = require('../assets/js/utils.js');
     const createCsvWriter = require('csv-writer').createObjectCsvWriter; // movido a utils //TODO: ver si hace falta y si lo tenemos que borrar de utils
     const fs = require('fs');
+    const {ipcRenderer} = require('electron')
+
 
     let fileList = null; // donde vamos a almacenar los archivos seleccionados   
     let filesData = null;  // donde guardamos los nombres de los archivos, ruta y contaminante
     let contaminantes = null; // aquí es donde guardamos todos los datos fusionados por contaminantes.   
     let outputDir = null; // url de la carpeta de salida
+
+    ipcRenderer.on('DONE', (e, data) => {
+        let x = document.getElementById("snackbar");
+        // Add the "show" class to DIV
+         x.classList.add("show");
+        // After 3 seconds, remove the show class from DIV
+        setTimeout(function () { x.classList.remove("show"); }, 1000);
+        console.log(data);
+    })
+
 
     // selecciona los archivos a tratar
     function fileChooser() {
@@ -121,137 +133,143 @@
 
         //TOAST Inicialización ====
         let y = document.getElementById("snackbar2");
+
         // Add the "show" class to DIV
         y.classList.add("show");
         // After 3 seconds, remove the show class from DIV
         setTimeout(function () { y.classList.remove("show"); }, 1000);
-        // FIN TOAST
-        console.log("textooooooooo");
-        
-
-
-
-        if (!fileList || !outputDir) {
-
-            dialog.showErrorBox("Error", "Debe haber seleccionado los archivos de entrada y la carpeta de salida")
-
-        } else {
-
-            let horarios = document.getElementById('horarios').checked;
-            let diarios = document.getElementById('diarios').checked;
-            let octohorarios = document.getElementById('octohorarios').checked;
-
-            // ======================================= LECTURA Y CALCULOS DE DATOS =====================================================
-
-            /* Aquí cogemos la lista de archivos y creamos una lista de objetos donde hemos extraido
-            el nombre, el tipo, los datos, etc.. */
-            filesData = utils.extractFiles(fileList);
-
-            //Ahora vamos a dividir las columnas porque en los archivos vienen junto los valores y las flags.
-            filesData.forEach(file => {
-                utils.splitColumns(file);
-            });
-
-
-
-            // Ahora vamos a extraer los quinceminutales y transformarlos a horarios
-            // Aqui extraemos los archivos 15minutales
-            let files15m = filesData.filter(file => file.type == "quinceminutales");
-            if (files15m.length > 0) { // si tenemos archivos 15 minutales
-
-                // Aqui pasamos los 15minutales a horarios.
-                utils.transform15mTo60m(files15m) // No necesitamos guardar los datos retornados porque los cambios ya han sido aplicados a los datos originales
-            }
-
-
-            /* Ahora debemos fusionar todos los datos horarios para tener todos los horarios 
-            en un mismo fichero pero clasificados por contaminantes..*/
-            let datosHorarios = utils.mergeFilesByKeys(filesData);
-            console.log('datosHorarios :>> ', datosHorarios);
-
-            let datosDiarios = utils.horarioADiario(datosHorarios);
-            console.log('datosDiarios :>> ', datosDiarios);
-
-            let datosOctohorarios = utils.horaAOcto(datosHorarios);
-            console.log('datosOctohorarios :>> ', datosOctohorarios);
-
-
-
-            // ======================================ESCRITURA DE DATOS A FICHEROS ====================================================
-
-            // grabación de datos horarios
-            if (horarios == true) { // si el usuario ha seleccionado la opción de "horarios", los grabamos
-
-                datosHorarios.forEach(contaminante => { //TODO: agregar este ejemplo a los apuntes
-                    let header = []
-                    for (const [key, value] of Object.entries(contaminante.data[0])) {
-                        header.push({ id: `${key}`, title: `${key}` })
-
-                    }
-
-                    const csvWriter = createCsvWriter({
-                        path: `${outputDir}\\${contaminante.key}_horario.csv`,
-                        header,
-                        fieldDelimiter: ';'
-                    });
-                    csvWriter.writeRecords(contaminante.data)       // returns a promise
-                        .then(() => {
-                            console.log(`${contaminante.key}_horario.csv -- Escrito --`);
-                        });
-                });
-            }
-
-            //grabación de datos diarios
-            if (diarios == true) {
-                datosDiarios.forEach(contaminante => { //TODO: agregar este ejemplo a los apuntes
-                    let header = []
-                    for (const [key, value] of Object.entries(contaminante.data[0])) {
-                        header.push({ id: `${key}`, title: `${key}` })
-
-                    }
-
-                    const csvWriter = createCsvWriter({
-                        path: `${outputDir}\\${contaminante.key}_diario.csv`,
-                        header,
-                        fieldDelimiter: ';'
-                    });
-                    csvWriter.writeRecords(contaminante.data)       // returns a promise
-                        .then(() => {
-                            console.log(`${contaminante.key}_diario.csv -- Escrito --`);
-                        });
-                });
-            }
-
-
-            //grabación de datos octohorarios
-            if (octohorarios == true) {
-                datosOctohorarios.forEach(contaminante => { //TODO: agregar este ejemplo a los apuntes
-                    let header = []
-                    for (const [key, value] of Object.entries(contaminante.data[0])) {
-                        header.push({ id: `${key}`, title: `${key}` })
-
-                    }
-
-                    const csvWriter = createCsvWriter({
-                        path: `${outputDir}\\${contaminante.key}_octohorarios.csv`,
-                        header,
-                        fieldDelimiter: ';'
-                    });
-                    csvWriter.writeRecords(contaminante.data)       // returns a promise
-                        .then(() => {
-                            console.log(`${contaminante.key}_octohorarios.csv -- Escrito --`);
-                        });
-                });
-            }
-
+        data = {
+            inputdir: "C:/User...",
+            outdir: "C:/User...",
+            files: [
+                "file1.txt", "file2.txt", "file3.txt"
+            ]
         }
+        ipcRenderer.invoke('FILE-MAGIC-START', data)
 
-        //TOAST====
-        let x = document.getElementById("snackbar");
-        // Add the "show" class to DIV
-        x.classList.add("show");
-        // After 3 seconds, remove the show class from DIV
-        setTimeout(function () { x.classList.remove("show"); }, 1000);
+
+
+        // if (!fileList || !outputDir) {
+
+        //     dialog.showErrorBox("Error", "Debe haber seleccionado los archivos de entrada y la carpeta de salida")
+
+        // } else {
+
+        //     let horarios = document.getElementById('horarios').checked;
+        //     let diarios = document.getElementById('diarios').checked;
+        //     let octohorarios = document.getElementById('octohorarios').checked;
+
+        //     // ======================================= LECTURA Y CALCULOS DE DATOS =====================================================
+
+        //     /* Aquí cogemos la lista de archivos y creamos una lista de objetos donde hemos extraido
+        //     el nombre, el tipo, los datos, etc.. */
+        //     filesData = utils.extractFiles(fileList);
+
+        //     //Ahora vamos a dividir las columnas porque en los archivos vienen junto los valores y las flags.
+        //     filesData.forEach(file => {
+        //         utils.splitColumns(file);
+        //     });
+
+
+
+        //     // Ahora vamos a extraer los quinceminutales y transformarlos a horarios
+        //     // Aqui extraemos los archivos 15minutales
+        //     let files15m = filesData.filter(file => file.type == "quinceminutales");
+        //     if (files15m.length > 0) { // si tenemos archivos 15 minutales
+
+        //         // Aqui pasamos los 15minutales a horarios.
+        //         utils.transform15mTo60m(files15m) // No necesitamos guardar los datos retornados porque los cambios ya han sido aplicados a los datos originales
+        //     }
+
+
+        //     /* Ahora debemos fusionar todos los datos horarios para tener todos los horarios 
+        //     en un mismo fichero pero clasificados por contaminantes..*/
+        //     let datosHorarios = utils.mergeFilesByKeys(filesData);
+        //     console.log('datosHorarios :>> ', datosHorarios);
+
+        //     let datosDiarios = utils.horarioADiario(datosHorarios);
+        //     console.log('datosDiarios :>> ', datosDiarios);
+
+        //     let datosOctohorarios = utils.horaAOcto(datosHorarios);
+        //     console.log('datosOctohorarios :>> ', datosOctohorarios);
+
+
+
+        //     // ======================================ESCRITURA DE DATOS A FICHEROS ====================================================
+
+        //     // grabación de datos horarios
+        //     if (horarios == true) { // si el usuario ha seleccionado la opción de "horarios", los grabamos
+
+        //         datosHorarios.forEach(contaminante => { //TODO: agregar este ejemplo a los apuntes
+        //             let header = []
+        //             for (const [key, value] of Object.entries(contaminante.data[0])) {
+        //                 header.push({ id: `${key}`, title: `${key}` })
+
+        //             }
+
+        //             const csvWriter = createCsvWriter({
+        //                 path: `${outputDir}\\${contaminante.key}_horario.csv`,
+        //                 header,
+        //                 fieldDelimiter: ';'
+        //             });
+        //             csvWriter.writeRecords(contaminante.data)       // returns a promise
+        //                 .then(() => {
+        //                     console.log(`${contaminante.key}_horario.csv -- Escrito --`);
+        //                 });
+        //         });
+        //     }
+
+        //     //grabación de datos diarios
+        //     if (diarios == true) {
+        //         datosDiarios.forEach(contaminante => { //TODO: agregar este ejemplo a los apuntes
+        //             let header = []
+        //             for (const [key, value] of Object.entries(contaminante.data[0])) {
+        //                 header.push({ id: `${key}`, title: `${key}` })
+
+        //             }
+
+        //             const csvWriter = createCsvWriter({
+        //                 path: `${outputDir}\\${contaminante.key}_diario.csv`,
+        //                 header,
+        //                 fieldDelimiter: ';'
+        //             });
+        //             csvWriter.writeRecords(contaminante.data)       // returns a promise
+        //                 .then(() => {
+        //                     console.log(`${contaminante.key}_diario.csv -- Escrito --`);
+        //                 });
+        //         });
+        //     }
+
+
+        //     //grabación de datos octohorarios
+        //     if (octohorarios == true) {
+        //         datosOctohorarios.forEach(contaminante => { //TODO: agregar este ejemplo a los apuntes
+        //             let header = []
+        //             for (const [key, value] of Object.entries(contaminante.data[0])) {
+        //                 header.push({ id: `${key}`, title: `${key}` })
+
+        //             }
+
+        //             const csvWriter = createCsvWriter({
+        //                 path: `${outputDir}\\${contaminante.key}_octohorarios.csv`,
+        //                 header,
+        //                 fieldDelimiter: ';'
+        //             });
+        //             csvWriter.writeRecords(contaminante.data)       // returns a promise
+        //                 .then(() => {
+        //                     console.log(`${contaminante.key}_octohorarios.csv -- Escrito --`);
+        //                 });
+        //         });
+        //     }
+
+        // }
+
+        // //TOAST====
+        // let x = document.getElementById("snackbar");
+        // // Add the "show" class to DIV
+        // x.classList.add("show");
+        // // After 3 seconds, remove the show class from DIV
+        // setTimeout(function () { x.classList.remove("show"); }, 1000);
 
 
     } // fin función "generar".

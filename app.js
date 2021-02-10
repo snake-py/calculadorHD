@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 
 let mainWindow
@@ -41,3 +41,27 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
     if (mainWindow === null) createWindow()
 })
+
+
+ipcMain.handle('FILE-MAGIC-START', (event, data) => {
+    console.log(data);
+    /// Create your file script here 
+
+
+    // DELETE TIME OUT Function I created it just for demo
+    setTimeout(function () { 
+        dataToReturn = {
+            title: "ATTACH SOME DATA TO ME"
+        }
+        mainWindow.webContents.send('DONE', dataToReturn)
+     }, 4000);
+
+
+    // Enable these to send data back or dispatch
+    // an event which can be catched
+    // dataToReturn = {
+    //     title: "ATTACH SOME DATA TO ME"
+    // }
+    // mainWindow.webContents.send('DONE', dataToReturn)
+})
+
